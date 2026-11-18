@@ -203,7 +203,7 @@ def build_edit():
     title = attr(sn("F2", id="title", label="標題", required=True, placeholder="例如：老張牛肉麵"), 'id="title"', 'maxlength="100" autocomplete="off"')
     price = attr(sn("F2", id="price", label="價格", type="number", inputmode="numeric", num="num", required=True, hint="新台幣，整數"),
                  'id="price"', 'min="0" max="1000000" step="1"')
-    visited = sn("F2", id="visited-on", label="用餐日期", type="date", num="num")
+    visited = sn("F2", id="visited-on", label="用餐日期", type="date", num="num app-date")
     body = sn("F2:textarea", id="body", label="點評", maxlength="2000", placeholder="味道、份量、推薦的品項…", hint="0／2000 字")
     basic = stack(title, sn("F2:row", fields=price + visited), body, tags_block())
 
@@ -529,8 +529,8 @@ def rating_select(fid, label, selected, overall=False):
 
 def build_stats():
     # 統計頁：資料由 GET /api/stats 依日期範圍取回，計算在 js/stats-calc.js，畫面在 js/stats.js
-    dates = sn("F2:row", fields=sn("F2", id="stats-from", label="開始日期", type="date", num="num")
-               + sn("F2", id="stats-to", label="結束日期", type="date", num="num"))
+    dates = sn("F2:row", fields=sn("F2", id="stats-from", label="開始日期", type="date", num="num app-date")
+               + sn("F2", id="stats-to", label="結束日期", type="date", num="num app-date"))
     range_form = sn("F1", id="range-form", content=stack(
         sn("A5", legend="快速範圍", name="range", options=[
             {"value": "30", "text": "近 30 天"}, {"value": "90", "text": "近 3 個月"},

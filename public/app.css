@@ -296,3 +296,7 @@ main:has(.app-fab) { padding-bottom: 112px; }
 .app-nav > summary { list-style: none; cursor: pointer; }
 .app-nav > summary::-webkit-details-marker { display: none; }
 .app-nav-menu { position: absolute; bottom: calc(100% + var(--space-2)); left: 0; z-index: 5; display: grid; gap: var(--space-2); min-width: max-content; padding: var(--space-2); border: var(--line); background: var(--card); box-shadow: var(--shadow-sm); }
+
+/* iOS Safari 的 date input 帶原生外觀與固有最小寬度，width:100% 仍會撐出欄位、值也置中（build_pages.py 替 type="date" 欄加 app-date）；拿掉原生外觀、允許縮到 0，值改靠左 */
+.app-date { display: block; min-width: 0; -webkit-appearance: none; appearance: none; text-align: left; }
+.app-date::-webkit-date-and-time-value { text-align: left; }
