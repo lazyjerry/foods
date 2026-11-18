@@ -27,7 +27,12 @@ SHARE_FIELDS = [("title", "標題"), ("price", "價格"), ("date", "用餐日期
 # 編輯頁「選擇插畫」可選的圖（public/img/illustrations/），檔名與顯示名稱
 ILLUSTRATIONS = [("food-01.jpg", "牛肉麵"), ("food-02.jpg", "滷肉飯"), ("food-03.jpg", "小籠包"),
                  ("food-04.jpg", "珍珠奶茶"), ("food-05.jpg", "鹽酥雞"), ("meal-01.jpg", "火鍋"),
-                 ("meal-02.jpg", "便當"), ("meal-03.jpg", "早餐"), ("meal-04.jpg", "刈包"), ("meal-05.jpg", "豆花")]
+                 ("meal-02.jpg", "便當"), ("meal-03.jpg", "早餐"), ("meal-04.jpg", "刈包"), ("meal-05.jpg", "豆花"),
+                 ("food-06.jpg", "蚵仔煎"), ("food-07.jpg", "臭豆腐"), ("food-08.jpg", "雞排"), ("food-09.jpg", "水煎包"),
+                 ("food-10.jpg", "肉圓"), ("food-11.jpg", "麵線"), ("food-12.jpg", "水餃"), ("food-13.jpg", "炒飯"),
+                 ("food-14.jpg", "拉麵"), ("food-15.jpg", "壽司"), ("food-16.jpg", "咖哩飯"), ("food-17.jpg", "義大利麵"),
+                 ("food-18.jpg", "披薩"), ("food-19.jpg", "漢堡薯條"), ("food-20.jpg", "牛排"), ("food-21.jpg", "燒肉"),
+                 ("food-22.jpg", "芒果冰"), ("food-23.jpg", "咖啡"), ("food-24.jpg", "蛋糕"), ("food-25.jpg", "蔥油餅")]
 
 
 def sn(code, **fields):
