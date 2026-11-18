@@ -12,3 +12,5 @@ scripts/seed-demo.sql
 scripts/seed-demo.sh
 scripts/seed-demo-photos.sh
 scripts/replace-demo-photos.sh
+scripts/seed-demo-tags.sql
+scripts/seed-demo-tags.sh
