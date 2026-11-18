@@ -148,6 +148,10 @@ with sync_playwright() as p:
     path = d.path()
     ok("下載壓縮照片", Path(path).read_bytes()[:3] == b"\xff\xd8\xff" and d.suggested_filename.endswith(".jpg"), d.suggested_filename)
     shot(page, "photos")
+    page.click(".app-shot .app-photo-open")
+    ok("照片集點照片開大圖", page.evaluate("document.querySelector('#photo-box').open") and page.url.startswith(BASE + "/photos"), page.url)
+    page.keyboard.press("Escape")
+    ok("照片集大圖可關閉", not page.evaluate("document.querySelector('#photo-box').open"))
 
     # 設定
     page.goto(BASE + "/settings")
@@ -276,6 +280,19 @@ with sync_playwright() as p:
     checked = page.eval_on_selector_all(".app-hearts input:checked", "els => els.map(e => e.value)")
     ok("新增點評套用預設 4 顆心", checked == ["4"] * 6, checked)
 
+    # 分類建議清單：打新字第一項是「新增」，Enter 加入；聚焦時列出舊分類，點一下加入
+    page.fill("#tag-input", "E2E新分類")
+    ok("分類輸入出現新增項", page.text_content(".app-combo-option.is-active") == "新增「E2E新分類」", page.text_content(".app-combo-pop"))
+    page.press("#tag-input", "Enter")
+    ok("分類 Enter 新增", page.text_content("#tag-list") == "#E2E新分類 ×" and page.input_value("#tag-input") == "", page.text_content("#tag-list"))
+    old = page.locator(".app-combo-option", has_text="#")
+    if old.count():
+        name = old.first.text_content()
+        old.first.click()
+        ok("分類從清單選舊的", (name + " ×") in page.text_content("#tag-list") and page.evaluate("document.activeElement.id") == "tag-input", page.text_content("#tag-list"))
+    page.keyboard.press("Escape")
+    ok("分類清單 Esc 關閉", page.is_hidden(".app-combo-pop"))
+
     # 帳號與密碼卡：顯示帳號、確認不一致、目前密碼錯誤（回 400，不跳登入頁）；實際改密碼由 smoke-api.sh 測
     page.goto(BASE + "/settings")
     page.wait_for_function("document.querySelector('#account-username').value !== ''")
@@ -317,6 +334,7 @@ with sync_playwright() as p:
     ok("密碼停用時不能刪最後一把金鑰", page.locator("#passkey-list .app-key").count() == 1)
     shot(page, "settings-passkey")
 
+    page.once("dialog", lambda dlg: dlg.accept())
     page.click("#logout-btn")
     page.wait_for_url("**/login")
     page.wait_for_selector("#passkey-btn:not([hidden])")

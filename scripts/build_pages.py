@@ -58,7 +58,9 @@ def header(current):
     elif current == "offline":
         end = sn("L2:pill", text="OFFLINE")
     else:
-        end = sn("A1", variant="is-sm secondary", id="logout-btn", text="登出")
+        # 重新整理鈕給 PWA 獨立視窗用（沒有瀏覽器的重新整理），由 bindLogout() 一併綁定
+        end = (sn("A1", variant="is-sm secondary", id="refresh-btn", text="重新整理")
+               + sn("A1", variant="is-sm secondary", id="logout-btn", text="登出"))
     return sn("L2", mark="食", name="吃過筆記", end=end)
 
 
@@ -89,8 +91,9 @@ def stack(*parts):
 
 
 def privacy_note():
-    return sn("C5", icon="⌁", title="照片在你的裝置上壓縮後才上傳",
-              text="原始照片不會離開裝置，上傳的是壓縮後的 JPEG，拍攝位置等 EXIF 資料一併移除。地址查詢經由 OpenStreetMap Nominatim。")
+    # 只放在編輯頁：上傳照片與查地址都發生在這裡，其他頁放了反而看不懂在講什麼
+    return sn("C5", icon="i", title="照片與地址會送到哪裡",
+              text="照片會先在你的手機或電腦上縮小成 JPEG，清掉拍攝位置等 EXIF 資料後才上傳，原始檔不會傳出去。用地址找位置、或點地圖帶出地址時，會把地址或座標送到 OpenStreetMap 的 Nominatim 服務查詢。")
 
 
 def page(name, title, desc, mast, main, scripts, current, form=None):
@@ -162,7 +165,7 @@ def build_index():
         card("01", "add-title", "記下一筆", "標題、價格、點評與位置必填，照片和評比可以之後再補", add, variant="is-roomy is-wide"),
         card("02", "list-title", "搜尋點評", "依店名、地址、點評內容或分類篩選", content, accent="accent-blue", variant="is-roomy is-wide"),
     ])
-    main = sn("L4", cards=cards) + "\n" + privacy_note()
+    main = sn("L4", cards=cards)
     page("index.html", "食物點評｜記錄店家、價格、位置與照片", "瀏覽與搜尋自己記錄的食物點評",
          {"eyebrow": "FOOD REVIEW LOG", "solid": "食物點評", "outline": "列表",
           "lede": "想不起上次那家好不好吃，搜一下就知道。"},
@@ -270,12 +273,12 @@ def illustration_sheet():
 
 def tags_block():
     # 分類標籤（ADR 019）：輸入後按「加入」或 Enter，已加的分類以 chip 列出，點一下移除
-    f3 = sn("F3", id="tag-input", placeholder="例如：拉麵", button="加入", button_label="加入分類")
+    # 舊分類的建議清單由 js/tag-suggest.js 在輸入框下方產生（不用原生 datalist，系統選單位置與樣式對不上）
+    f3 = sn("F3", id="tag-input", placeholder="輸入新分類，或從清單選", button="加入", button_label="加入分類")
     f3 = f3.replace('<button type="button"', '<button type="button" id="tag-add-btn"', 1)
-    f3 = attr(f3, 'id="tag-input"', 'maxlength="60" list="tag-options" enterkeyhint="enter"')
+    f3 = attr(f3, 'id="tag-input"', 'maxlength="60" enterkeyhint="enter"')
     return stack(
         sn("F2:control", id="tag-input", label="分類（選用）", control=f3, hint="最多 10 個，每個 20 字內、不含空白；點已加的分類可移除"),
-        '<datalist id="tag-options"></datalist>',
         '<div class="app-tag-list" id="tag-list" role="group" aria-label="已加的分類"></div>',
     )
 
@@ -286,8 +289,9 @@ def build_photos():
         sn("F10", id="gallery-status", role="status"),
         '<div class="app-gallery" id="gallery"></div>',
         sn("A1", variant="secondary", id="more-btn", text="載入更多").replace("<button", "<button hidden", 1),
+        photo_box(),
     ])
-    main = sn("L4", cards=card("01", "gallery-title", "照片集", "依店名、地址、點評、分類或照片說明搜尋", content, accent="accent-green", variant="is-roomy is-wide")) + "\n" + privacy_note()
+    main = sn("L4", cards=card("01", "gallery-title", "照片集", "依店名、地址、點評、分類或照片說明搜尋", content, accent="accent-green", variant="is-roomy is-wide"))
     page("photos.html", "照片集｜瀏覽、搜尋與下載壓縮後的點評照片", "瀏覽、搜尋與下載點評照片",
          {"eyebrow": "PHOTO GALLERY", "solid": "照片集", "outline": "瀏覽下載",
           "lede": "翻翻吃過的每一餐，想要的照片存回手機。"},
@@ -389,7 +393,7 @@ def share_card_dialog():
 
 
 def photo_box():
-    # 公開分享頁的大圖檢視：D1 對話框限寬 560px 放不下大圖，另做 app-lightbox；開關與切換由 js/shared.js 的 bindPhotoBox() 處理
+    # 公開分享頁與照片集的大圖檢視：D1 對話框限寬 560px 放不下大圖，另做 app-lightbox；開關與切換由 js/shared.js、js/photos.js 的 bindPhotoBox() 處理
     return """<dialog class="app-lightbox" id="photo-box" aria-label="照片大圖">
   <div class="app-lightbox-body">
     <div class="app-lightbox-head"><span class="app-slider-count" id="photo-box-count"></span><button class="sheet-x" type="button" id="photo-box-close" aria-label="關閉">×</button></div>

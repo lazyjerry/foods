@@ -2,6 +2,7 @@
 import { $, RATING_DEFS, api, bindLogout, charCount, esc, formatBytes, loadSettings, mediaUrl, setStatus, today } from "./common.js";
 import { createMap } from "./map.js";
 import { compressImage } from "./photo.js";
+import { tagSuggest } from "./tag-suggest.js";
 
 const FALLBACK = { lat: 25.0478, lng: 121.517 }; // 台北車站：拿不到目前位置時的起點
 const MAX_PHOTOS = 20;
@@ -135,6 +136,18 @@ function commitTagInput() {
   return msg;
 }
 
+// 建議清單要比下面的 Enter 監聽先註冊：清單有選中項目時由它處理 Enter，不再走 commitTagInput
+let tagOptions = [];
+const suggest = tagSuggest(tagInput, {
+  options: () => tagOptions,
+  taken: () => tags,
+  clean: cleanTag,
+  onPick: (t) => {
+    tagInput.value = t;
+    commitTagInput();
+  },
+});
+
 $("#tag-add-btn").addEventListener("click", () => {
   commitTagInput();
   tagInput.focus();
@@ -155,7 +168,8 @@ tagList.addEventListener("click", (e) => {
 async function loadTagOptions() {
   try {
     const data = await api("/api/tags");
-    $("#tag-options").innerHTML = data.tags.map((t) => `<option value="${esc(t.tag)}"></option>`).join("");
+    tagOptions = data.tags.map((t) => t.tag);
+    suggest.refresh();
   } catch {
     // 建議清單拿不到不影響輸入
   }

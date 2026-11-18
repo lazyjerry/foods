@@ -25,7 +25,7 @@
 <div class="wrap is-wide">
 <header class="top">
   <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
-  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="refresh-btn">重新整理</button><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
 </header>
 <header class="masthead">
   <p class="eyebrow">NEW REVIEW</p>
@@ -68,12 +68,11 @@
 <div class="stack"><div class="field">
   <label for="tag-input">分類（選用）</label>
   <div class="input-group">
-  <input id="tag-input" maxlength="60" list="tag-options" enterkeyhint="enter" type="text" placeholder="例如：拉麵" autocomplete="off" spellcheck="false">
+  <input id="tag-input" maxlength="60" enterkeyhint="enter" type="text" placeholder="輸入新分類，或從清單選" autocomplete="off" spellcheck="false">
   <button type="button" id="tag-add-btn" aria-label="加入分類">加入</button>
 </div>
   <p class="hint">最多 10 個，每個 20 字內、不含空白；點已加的分類可移除</p>
 </div>
-<datalist id="tag-options"></datalist>
 <div class="app-tag-list" id="tag-list" role="group" aria-label="已加的分類"></div></div></div></section>
 <section class="card accent-blue is-roomy" aria-labelledby="location-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">02</span>
@@ -143,8 +142,8 @@
 <p class="status" id="save-status" role="status"></p>
 <div class="actions"><a id="share-link" hidden class="btn secondary" href="/share">做成分享圖</a><button hidden class="btn is-link" type="button" id="delete-btn">刪除這筆點評</button></div></div></section></div>
 <aside class="note">
-  <span class="note-icon" aria-hidden="true">⌁</span>
-  <div><strong>照片在你的裝置上壓縮後才上傳</strong><p>原始照片不會離開裝置，上傳的是壓縮後的 JPEG，拍攝位置等 EXIF 資料一併移除。地址查詢經由 OpenStreetMap Nominatim。</p></div>
+  <span class="note-icon" aria-hidden="true">i</span>
+  <div><strong>照片與地址會送到哪裡</strong><p>照片會先在你的手機或電腦上縮小成 JPEG，清掉拍攝位置等 EXIF 資料後才上傳，原始檔不會傳出去。用地址找位置、或點地圖帶出地址時，會把地址或座標送到 OpenStreetMap 的 Nominatim 服務查詢。</p></div>
 </aside></div>
 </form>
 </main>

@@ -3,6 +3,8 @@
 
 /* 地圖 */
 .app-map { height: 340px; border: var(--line); background: var(--paper); }
+/* Leaflet 的縮放鈕 z-index 1000、圖層 400，不隔離會蓋過上方卡片彈出的清單（編輯頁分類建議）；隔成獨立堆疊層 */
+.app-map { isolation: isolate; }
 
 .app-geo-results { display: flex; flex-direction: column; gap: var(--space-2); }
 .app-geo-results:empty { display: none; }
@@ -82,6 +84,12 @@
 .app-review-body p { margin: 0; }
 .app-review-addr { color: var(--ink-2); font-size: var(--fs-sm); }
 .app-review-hearts { color: var(--coral-ink); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+/* 每項評比（「口味 ♥♥♥♡♡」）不拆行；小螢幕一行一項，免得標籤和心數錯開到不同行 */
+.app-review-hearts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+.app-review-hearts > span { white-space: nowrap; }
+@media (max-width: 760px) {
+  .app-review-hearts { flex-direction: column; }
+}
 .app-review-text { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; white-space: pre-wrap; }
 
 /* 照片集 */

@@ -1,4 +1,4 @@
-// 照片集：搜尋、分頁、開原圖、下載壓縮檔。
+// 照片集：搜尋、分頁、點照片開大圖、下載壓縮檔。
 import { $, api, autoLoadMore, bindLogout, esc, formatBytes, mediaUrl, setStatus, tagBadges } from "./common.js";
 
 const PAGE = 24;
@@ -17,7 +17,7 @@ function fileName(p) {
 function tile(p) {
   const meta = [p.caption, p.visited_on, `${formatBytes(p.bytes)}`].filter(Boolean).join(" · ");
   return `<figure class="app-shot">
-  <a href="${mediaUrl(p.key)}" target="_blank" rel="noopener"><img src="${mediaUrl(p.key)}" alt="${esc(p.caption || p.title)}" width="${p.width || ""}" height="${p.height || ""}" loading="lazy"></a>
+  <button class="app-photo-open" type="button" aria-label="放大照片" data-caption="${esc([p.title, p.caption].filter(Boolean).join(" · "))}"><img src="${mediaUrl(p.key)}" alt="${esc(p.caption || p.title)}" width="${p.width || ""}" height="${p.height || ""}" loading="lazy"></button>
   <figcaption class="app-shot-body">
     <strong><a href="/edit?id=${p.review_id}">${esc(p.title)}</a></strong>
     <span class="meta">${esc(meta)}</span>
@@ -65,6 +65,49 @@ async function load(reset) {
 
 const recheck = autoLoadMore(more, () => load(false));
 
+// 點照片開大圖（<dialog>，同公開分享頁的 photo_box()）：照片集已載入的照片可左右切換，方向鍵、滑動也行
+const box = $("#photo-box");
+let boxButtons = [];
+let boxIndex = 0;
+
+function showBox(i) {
+  boxIndex = (i + boxButtons.length) % boxButtons.length;
+  const btn = boxButtons[boxIndex];
+  const img = btn.querySelector("img");
+  $("#photo-box-img").src = img.src;
+  $("#photo-box-img").alt = img.alt;
+  $("#photo-box-caption").textContent = btn.dataset.caption || "";
+  $("#photo-box-count").textContent = `${boxIndex + 1} / ${boxButtons.length}`;
+  $("#photo-box-bar").hidden = boxButtons.length < 2;
+}
+
+function bindPhotoBox() {
+  if (!box || typeof box.showModal !== "function") return;
+  gallery.addEventListener("click", (e) => {
+    const btn = e.target.closest(".app-photo-open");
+    if (!btn) return;
+    boxButtons = [...gallery.querySelectorAll(".app-photo-open")];
+    showBox(boxButtons.indexOf(btn));
+    box.showModal();
+  });
+  $("#photo-box-close").addEventListener("click", () => box.close());
+  box.addEventListener("click", (e) => {
+    if (e.target === box) box.close(); // 點背景關閉
+  });
+  for (const b of box.querySelectorAll("[data-box]")) b.addEventListener("click", () => showBox(boxIndex + Number(b.dataset.box)));
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") showBox(boxIndex - 1);
+    if (e.key === "ArrowRight") showBox(boxIndex + 1);
+  });
+  let startX = null;
+  box.addEventListener("pointerdown", (e) => (startX = e.clientX));
+  box.addEventListener("pointerup", (e) => {
+    const dx = startX === null ? 0 : e.clientX - startX;
+    startX = null;
+    if (Math.abs(dx) > 50 && boxButtons.length > 1) showBox(boxIndex + (dx < 0 ? 1 : -1));
+  });
+}
+
 $("#search-form").addEventListener("submit", (e) => {
   e.preventDefault();
   query = input.value.trim();
@@ -77,4 +120,5 @@ $("#search-form").addEventListener("submit", (e) => {
 more.addEventListener("click", () => load(false));
 input.value = query;
 bindLogout();
+bindPhotoBox();
 load(true);

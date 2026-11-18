@@ -24,7 +24,7 @@ function item(r) {
     <p class="meta">${esc(meta)}</p>
     ${tagBadges(r.tags, "/")}
     ${r.address ? `<p class="app-review-addr">${esc(r.address)}</p>` : ""}
-    ${rating.length ? `<p class="app-review-hearts">${rating.map(esc).join("　")}</p>` : ""}
+    ${rating.length ? `<p class="app-review-hearts">${rating.map((t) => `<span>${esc(t)}</span>`).join("")}</p>` : ""}
     ${r.body ? `<p class="app-review-text">${esc(r.body)}</p>` : ""}
     <div class="actions"><a class="btn is-sm secondary" href="/edit?id=${r.id}">編輯</a><a class="btn is-sm secondary" href="/share?id=${r.id}">分享</a>${navMenu(r.lat, r.lng, r.title)}</div>
   </div>

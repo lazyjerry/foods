@@ -103,10 +103,13 @@ export function formatBytes(n) {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`;
 }
 
+// 頁首右上角：重新整理與登出（登出先 confirm）
 export function bindLogout() {
+  $("#refresh-btn")?.addEventListener("click", () => location.reload());
   const btn = $("#logout-btn");
   if (!btn) return;
   btn.addEventListener("click", async () => {
+    if (!confirm("確定要登出嗎？")) return;
     try {
       await api("/api/logout", { method: "POST" });
     } finally {

@@ -24,7 +24,7 @@
 <div class="wrap is-wide">
 <header class="top">
   <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
-  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="refresh-btn">重新整理</button><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
 </header>
 <header class="masthead">
   <p class="eyebrow">PHOTO GALLERY</p>
@@ -56,11 +56,15 @@
 </div></form>
 <p class="status" id="gallery-status" role="status"></p>
 <div class="app-gallery" id="gallery"></div>
-<button hidden class="btn secondary" type="button" id="more-btn">載入更多</button></section></div>
-<aside class="note">
-  <span class="note-icon" aria-hidden="true">⌁</span>
-  <div><strong>照片在你的裝置上壓縮後才上傳</strong><p>原始照片不會離開裝置，上傳的是壓縮後的 JPEG，拍攝位置等 EXIF 資料一併移除。地址查詢經由 OpenStreetMap Nominatim。</p></div>
-</aside></div>
+<button hidden class="btn secondary" type="button" id="more-btn">載入更多</button>
+<dialog class="app-lightbox" id="photo-box" aria-label="照片大圖">
+  <div class="app-lightbox-body">
+    <div class="app-lightbox-head"><span class="app-slider-count" id="photo-box-count"></span><button class="sheet-x" type="button" id="photo-box-close" aria-label="關閉">×</button></div>
+    <img class="app-lightbox-img" id="photo-box-img" alt="">
+    <p class="app-lightbox-caption" id="photo-box-caption"></p>
+    <div class="app-slider-bar" id="photo-box-bar"><button class="btn secondary" type="button" data-box="-1">‹ 上一張</button><button class="btn secondary" type="button" data-box="1">下一張 ›</button></div>
+  </div>
+</dialog></section></div></div>
 </main>
 <footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
 </div>
