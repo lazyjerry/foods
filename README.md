@@ -1,6 +1,6 @@
 # 吃過筆記
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<GitHub 使用者>/<repo>)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lazyjerry/foods)
 
 記錄店家的標題、價格、點評、位置、評比與照片，並把點評做成浮水印分享圖。跑在 Cloudflare Workers，點評存 D1，壓縮後的照片存 R2。
 
@@ -83,9 +83,14 @@ bash scripts/readme-media.sh [--seed N]
 
 ### 一鍵部署
 
-按最上方的「Deploy to Cloudflare」按鈕，Cloudflare 會把這個 repo 複製到你的 GitHub／GitLab 帳號，建立 D1 資料庫與 R2 bucket，並要你填 `APP_PASSWORD`（登入密碼）。部署指令是 `npm run deploy`，會先套用 D1 migration 再部署 Worker。
+1. 按最上方的「Deploy to Cloudflare」按鈕（或開 `https://deploy.workers.cloudflare.com/?url=https://github.com/lazyjerry/foods`），登入 Cloudflare 帳號。
+2. 連結 GitHub 或 GitLab 帳號。Cloudflare 會把這個 repo 複製一份到你的帳號，之後推送到複製出來的 repo 會自動重新部署。
+3. 確認資源：D1 資料庫（binding `DB`）與 R2 bucket（binding `PHOTOS`）會在你的帳號新建，名稱可以改。
+4. 填 `APP_PASSWORD`：它是登入密碼，也是登入 cookie 的簽章金鑰，請換成夠長的隨機字串（例如 `openssl rand -base64 24` 的輸出）。保留預設值 `change-me` 時 Worker 會拒絕所有登入。
+5. 部署指令維持 `npm run deploy`：先用 binding 名 `DB` 套用 D1 migration，再部署 Worker。
+6. 部署完成後開 Worker 網址（`https://<Worker 名稱>.<子網域>.workers.dev`），用帳號 `admin` 與剛填的 `APP_PASSWORD` 登入，再到設定頁改密碼、新增通行金鑰。
 
-之後推送到複製出來的 repo 會自動重新部署。
+要在本機對自己的資源下 `wrangler` 指令（例如下方的救援指令）時，先確認複製出來的 `wrangler.jsonc` 裡 `database_id` 與 `database_name` 是你自己的 D1（`npx wrangler d1 list` 查得到），指令裡的 `food-review-db` 也換成你的資料庫名稱。用量卡的選填 secret 見下方「手動部署」。
 
 ### 手動部署
 
