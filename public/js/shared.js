@@ -1,6 +1,6 @@
 // 公開分享頁（/s/<token>，ADR 020–022）：免登入、唯讀。
 // 照片逐張向 API 取得 base64 data URI 再放進 <img>，畫面與 DOM 不出現圖片網址。
-import { $, esc, formatPrice, ratingSummary, setStatus, tagBadges, watermark } from "./common.js";
+import { $, bindNavMenus, esc, formatPrice, NO_ADDRESS, navMenu, ratingSummary, setStatus, tagBadges, watermark } from "./common.js";
 import { openShareCard } from "./share-card.js";
 
 const token = location.pathname.split("/").pop() || "";
@@ -43,7 +43,8 @@ function item(r, kind) {
   <h3>${esc(r.title)}</h3>
   <p class="meta app-shared-meta">${esc(meta)}</p>
   ${tagBadges(r.tags)}
-  <p class="app-review-addr">${esc(r.address)}</p>
+  <p class="app-review-addr">${esc(r.address || NO_ADDRESS)}</p>
+  <div class="actions">${navMenu(r.lat, r.lng, r.title)}</div>
   ${rating.length ? `<ul class="app-shared-hearts">${rating.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
   ${r.body ? `<p class="app-shared-text">${esc(r.body)}</p>` : ""}
 </div>${r.photos.length ? photoBlock(r) : ""}</article>`;
@@ -174,4 +175,5 @@ async function init() {
 }
 
 bindPhotoBox();
+bindNavMenus();
 init();

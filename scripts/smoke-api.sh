@@ -95,8 +95,8 @@ s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["setting
 req PUT /api/settings -H "Content-Type: application/json" -d '{}' >/dev/null
 
 # 分類標籤與公開分享（ADR 019–021）
-r=$(req PUT "/api/reviews/$id" -H "Content-Type: application/json" -d '{"title":"冒煙測試牛肉麵","price":180,"lat":25.033,"lng":121.5654,"address":"台北市信義區信義路五段7號","tags":["#冒煙分類","冒煙分類","台式"]}')
-check "儲存分類" 200 "$(code "$r")" "$(body "$r")"
+r=$(req PUT "/api/reviews/$id" -H "Content-Type: application/json" -d '{"title":"冒煙測試牛肉麵","price":180,"lat":25.033,"lng":121.5654,"address":"","tags":["#冒煙分類","冒煙分類","台式"]}')
+check "儲存分類（地址選填，留空）" 200 "$(code "$r")" "$(body "$r")"
 t=$(body "$r" | python3 -c 'import json,sys; print(",".join(json.load(sys.stdin)["review"]["tags"]))')
 [ "$t" = "冒煙分類,台式" ] && echo "通過：分類去 # 與合併重複" || { echo "失敗：分類 $t"; fail=1; }
 r=$(req PUT "/api/reviews/$id" -H "Content-Type: application/json" -d '{"title":"t","price":1,"lat":1,"lng":1,"address":"a","tags":["有 空白"]}'); check "分類含空白回 422" 422 "$(code "$r")"
@@ -111,7 +111,8 @@ r=$(req GET "/api/shares?limit=1&q=$q"); n=$(body "$r" | python3 -c 'import json
 [ "$n" = "1 True" ] && echo "通過：已分享的連結搜尋與分頁欄位" || { echo "失敗：已分享的連結搜尋（$n）"; fail=1; }
 r=$(req GET "/api/shares?cursor=bad"); check "已分享的連結壞游標" 400 "$(code "$r")"
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok"); check "公開分享免登入" 200 "$c"
-grep -q "r2_key\|photos/$id/\|\"lat\"" "$TMP/pub" && { echo "失敗：公開分享露出 key 或座標"; fail=1; } || echo "通過：公開分享不含 key 與座標"
+grep -q "r2_key\|photos/$id/" "$TMP/pub" && { echo "失敗：公開分享露出 key"; fail=1; } || echo "通過：公開分享不含 key"
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["reviews"][0]; sys.exit(0 if (r["lat"], r["lng"], r["address"]) == (25.033, 121.5654, "") else 1)' "$TMP/pub" && echo "通過：公開分享帶座標供導航（ADR 022）" || { echo "失敗：公開分享座標或空地址 $(cat "$TMP/pub")"; fail=1; }
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok/photos/$pid"); check "公開照片" 200 "$c"
 grep -q '"src":"data:image/jpeg;base64,' "$TMP/pub" && echo "通過：公開照片為 base64" || { echo "失敗：公開照片格式"; fail=1; }
 c=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/s/$tok"); check "公開分享頁免登入" 200 "$c"

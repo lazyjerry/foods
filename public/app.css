@@ -291,3 +291,8 @@ main:has(.app-fab) { padding-bottom: 112px; }
 .app-trend-label { min-height: 2.4em; padding-top: var(--space-1); color: var(--ink-2); font-size: var(--fs-2xs); line-height: var(--lh-tight); text-align: center; white-space: nowrap; }
 /* 常用分類放在 F9 右欄：欄高跟著左欄的量表拉長，徽章列要靠上、不跟著撐高 */
 .app-top-tags { align-self: start; }
+/* 導航選單（common.js 的 navMenu）：往上展開，避免在地圖 popup 底部被地圖邊界切掉 */
+.app-nav { position: relative; }
+.app-nav > summary { list-style: none; cursor: pointer; }
+.app-nav > summary::-webkit-details-marker { display: none; }
+.app-nav-menu { position: absolute; bottom: calc(100% + var(--space-2)); left: 0; z-index: 5; display: grid; gap: var(--space-2); min-width: max-content; padding: var(--space-2); border: var(--line); background: var(--card); box-shadow: var(--shadow-sm); }

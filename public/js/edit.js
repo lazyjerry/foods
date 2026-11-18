@@ -96,7 +96,6 @@ function validate() {
   const lng = Number(f.lng.value);
   if (f.lat.value === "" || !(lat >= -90 && lat <= 90)) errors.lat = "緯度要在 -90 到 90 之間";
   if (f.lng.value === "" || !(lng >= -180 && lng <= 180)) errors.lng = "經度要在 -180 到 180 之間";
-  if (!f.address.value.trim()) errors.address = "請輸入地址，或在地圖上選位置後按「用座標查地址」";
   return errors;
 }
 

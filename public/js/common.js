@@ -192,3 +192,64 @@ export function watermark(src, text) {
     img.src = src;
   });
 }
+
+// 地址選填；分享圖與公開分享頁遇到空地址時顯示這句。
+export const NO_ADDRESS = "我不知道地址";
+
+// 導航：以座標開地圖 App。Google 地圖各平台都能開；iOS／iPadOS／macOS 另給 Apple 地圖，
+// Android 另給 geo: 交由系統選地圖 App；Windows／Linux 沒有通用的裝置地圖連結，只給 Google。
+// 上次選的 App 記在 localStorage（只是排序偏好，讀寫失敗就用預設順序）。
+const NAV_KEY = "foods.navApp";
+
+function devicePlatform() {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return "android";
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "ios"; // iPadOS 的 UA 偽裝成 Mac
+  if (/Macintosh/.test(ua)) return "mac";
+  return "";
+}
+
+function navApps(lat, lng, label) {
+  const at = `${Number(lat)},${Number(lng)}`;
+  const apps = [{ id: "google", name: "Google 地圖", href: `https://www.google.com/maps/dir/?api=1&destination=${at}`, blank: true }];
+  const platform = devicePlatform();
+  if (platform === "android") apps.push({ id: "device", name: "裝置地圖", href: `geo:${at}?q=${at}(${encodeURIComponent(label || "")})` });
+  else if (platform) apps.push({ id: "device", name: "Apple 地圖", href: `https://maps.apple.com/?daddr=${at}`, blank: platform === "mac" });
+  let last = "";
+  try {
+    last = localStorage.getItem(NAV_KEY) || "";
+  } catch {}
+  return last === "device" ? apps.reverse() : apps;
+}
+
+const navLink = (a, text, aria = "") =>
+  `<a class="btn is-sm secondary" href="${esc(a.href)}" data-nav="${a.id}"${a.blank ? ' target="_blank" rel="noopener"' : ""}${aria ? ` aria-label="${esc(aria)}"` : ""}>${esc(text)}</a>`;
+
+// 回傳「導航」按鈕的 HTML：只有一個 App 時直接連 Google 地圖，否則是可選 App 的下拉選單。頁面要呼叫一次 bindNavMenus()。
+export function navMenu(lat, lng, label) {
+  if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return "";
+  const apps = navApps(lat, lng, label);
+  if (apps.length === 1) return navLink(apps[0], "導航", "用 Google 地圖導航");
+  return `<details class="app-nav"><summary class="btn is-sm secondary">導航</summary><div class="app-nav-menu">${apps.map((a) => navLink(a, a.name)).join("")}</div></details>`;
+}
+
+// 記住選的 App、點選單外或按 Esc 收起選單。用 capture：Leaflet popup 會擋住 click 冒泡。
+export function bindNavMenus() {
+  const closeAll = (except) => {
+    for (const d of document.querySelectorAll("details.app-nav[open]")) if (d !== except) d.open = false;
+  };
+  document.addEventListener("click", (e) => {
+    const pick = e.target.closest?.("[data-nav]");
+    if (pick) {
+      try {
+        localStorage.setItem(NAV_KEY, pick.dataset.nav);
+      } catch {}
+      setTimeout(() => closeAll(null)); // 等連結的預設動作送出後再收
+      return;
+    }
+    closeAll(e.target.closest?.("details.app-nav"));
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAll(null);
+  });
+}

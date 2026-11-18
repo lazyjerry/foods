@@ -1,6 +1,6 @@
 // 分享圖：勾選欄位，把點評畫成浮水印合成在照片上（點評照片、相簿、現場拍照或純文字）。
 // 全部在瀏覽器的 canvas 完成；相簿與拍照的圖不上傳。
-import { $, RATING_DEFS, SHARE_FIELDS, api, autoLoadMore, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
+import { $, NO_ADDRESS, RATING_DEFS, SHARE_FIELDS, api, autoLoadMore, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
 import { loadImage } from "./photo.js";
 import { openShareCard } from "./share-card.js";
 import { combo } from "./combo.js";
@@ -63,7 +63,7 @@ function layout(W, scale) {
   if (sel.title) rows.push({ lines: wrap(review.title, font(60, 800), maxW, 2), font: font(60, 800), lh: 72 * u, color: token("--card") });
   const meta = [sel.price ? formatPrice(review.price) : "", sel.date && review.visited_on ? review.visited_on : "", sel.nickname && settings.nickname ? `${settings.nickname} 的點評` : ""].filter(Boolean).join(" · ");
   if (meta) rows.push({ lines: wrap(meta, font(32, 700), maxW, 2), font: font(32, 700), lh: 44 * u, color: token("--coral") });
-  if (sel.address) rows.push({ lines: wrap(review.address, font(28), maxW, 2), font: font(28), lh: 40 * u, color: ink2 });
+  if (sel.address) rows.push({ lines: wrap(review.address || NO_ADDRESS, font(28), maxW, 2), font: font(28), lh: 40 * u, color: ink2 });
   if (sel.ratings) {
     const items = RATING_DEFS.filter(([k]) => review.ratings?.[k]).map(([k, label]) => ({ label, n: review.ratings[k] }));
     if (items.length) {

@@ -1,5 +1,5 @@
 // 點評列表：搜尋、分頁載入；可切換成地圖模式（ADR 029）。
-import { $, api, autoLoadMore, bindLogout, esc, formatPrice, hearts, mediaUrl, ratingSummary, RATING_DEFS, setStatus, tagBadges } from "./common.js";
+import { $, api, autoLoadMore, bindLogout, bindNavMenus, esc, formatPrice, hearts, mediaUrl, navMenu, ratingSummary, RATING_DEFS, setStatus, tagBadges } from "./common.js";
 import { createReviewMap } from "./map.js";
 
 const PAGE = 20;
@@ -23,10 +23,10 @@ function item(r) {
     <h3><a href="/edit?id=${r.id}">${esc(r.title)}</a></h3>
     <p class="meta">${esc(meta)}</p>
     ${tagBadges(r.tags, "/")}
-    <p class="app-review-addr">${esc(r.address)}</p>
+    ${r.address ? `<p class="app-review-addr">${esc(r.address)}</p>` : ""}
     ${rating.length ? `<p class="app-review-hearts">${rating.map(esc).join("　")}</p>` : ""}
     ${r.body ? `<p class="app-review-text">${esc(r.body)}</p>` : ""}
-    <div class="actions"><a class="btn is-sm secondary" href="/edit?id=${r.id}">編輯</a><a class="btn is-sm secondary" href="/share?id=${r.id}">分享</a></div>
+    <div class="actions"><a class="btn is-sm secondary" href="/edit?id=${r.id}">編輯</a><a class="btn is-sm secondary" href="/share?id=${r.id}">分享</a>${navMenu(r.lat, r.lng, r.title)}</div>
   </div>
 </article>`;
 }
@@ -126,8 +126,7 @@ function pinHtml(place) {
 }
 
 const coverSrc = (r) => (r.cover_key ? mediaUrl(r.cover_key) : `/img/no-photo-${(Math.abs(Number(r.id) || 0) % 5) + 1}.svg`);
-const navUrl = (p) => `https://www.google.com/maps/dir/?api=1&amp;destination=${Number(p.lat)},${Number(p.lng)}`;
-const navBtn = (p) => `<a class="btn is-sm secondary" href="${navUrl(p)}" target="_blank" rel="noopener">導航</a>`;
+const navBtn = (p) => navMenu(p.lat, p.lng, p.label);
 
 function rateLine(r, short = false) {
   const avg = average(r.ratings);
@@ -154,7 +153,7 @@ function popupOne(place) {
   </div>
   ${rate ? `<div class="app-pop-hearts">${esc(rate)}</div>` : ""}
   ${popupTags(r.tags)}
-  <div class="app-pop-addr">${esc(r.address)}</div>
+  ${r.address ? `<div class="app-pop-addr">${esc(r.address)}</div>` : ""}
   ${r.excerpt ? `<div class="app-pop-text">${esc(r.excerpt)}</div>` : ""}
   <div class="app-pop-actions"><a class="btn is-sm secondary" href="/edit?id=${r.id}">編輯</a><a class="btn is-sm secondary" href="/share?id=${r.id}">分享</a>${navBtn(place)}</div>
 </div>`;
@@ -167,7 +166,7 @@ function popupMany(place) {
   });
   return `<div class="app-pop">
   <h3>同一地點 ${place.reviews.length} 筆點評</h3>
-  <div class="app-pop-addr">${esc(place.reviews[0].address)}</div>
+  ${place.reviews[0].address ? `<div class="app-pop-addr">${esc(place.reviews[0].address)}</div>` : ""}
   <ul class="app-pop-list">${rows.join("")}</ul>
   <div class="app-pop-actions">${navBtn(place)}</div>
 </div>`;
@@ -245,4 +244,5 @@ $("#search-form").addEventListener("submit", (e) => {
 more.addEventListener("click", () => load(false));
 input.value = query;
 bindLogout();
+bindNavMenus();
 setView(view);

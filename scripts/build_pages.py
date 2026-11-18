@@ -210,7 +210,7 @@ def build_edit():
     lat = attr(sn("F2", id="lat", label="緯度", type="number", num="num", required=True), 'id="lat"', 'min="-90" max="90" step="any"')
     lng = attr(sn("F2", id="lng", label="經度", type="number", num="num", required=True), 'id="lng"', 'min="-180" max="180" step="any"')
     addr_f3 = sn("F3", id="address", placeholder="例如：台北市大安區忠孝東路四段 1 號", button="查座標", button_label="以地址查座標")
-    addr_f3 = attr(addr_f3.replace('<button type="button"', '<button type="button" id="geocode-btn"', 1), 'id="address"', 'required maxlength="300"')
+    addr_f3 = attr(addr_f3.replace('<button type="button"', '<button type="button" id="geocode-btn"', 1), 'id="address"', 'maxlength="300"')
     location = stack(
         '<div class="app-map" id="map" role="application" aria-label="地圖：點選或拖曳標記設定位置"></div>',
         sn("F2:row", fields=lat + lng),

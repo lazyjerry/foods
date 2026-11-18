@@ -47,8 +47,7 @@ export function validateReview(input) {
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) errors.lng = "經度要在 -180 到 180 之間";
 
   const address = typeof input?.address === "string" ? input.address.trim() : "";
-  if (!address) errors.address = "請輸入地址，或在地圖上選位置後按「用座標查地址」";
-  else if (chars(address) > 300) errors.address = "地址最多 300 字";
+  if (chars(address) > 300) errors.address = "地址最多 300 字"; // 地址選填，空字串照存（欄位 NOT NULL）
 
   let visitedOn = null;
   if (input?.visited_on) {

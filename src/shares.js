@@ -141,6 +141,8 @@ export async function publicShare(env, token) {
       price: r.price,
       body: r.body,
       address: r.address,
+      lat: r.lat,
+      lng: r.lng,
       ratings: JSON.parse(r.ratings || "{}"),
       tags: parseTags(r.tags),
       visited_on: r.visited_on,
