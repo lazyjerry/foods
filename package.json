@@ -1,0 +1,35 @@
+{
+  "name": "food-review",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pages": "python3 scripts/build_pages.py",
+    "vendor": "bash scripts/vendor.sh",
+    "dev": "wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply food-review-db --local",
+    "migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "check": "bash scripts/check.sh",
+    "deploy": "npm run migrate:remote && wrangler deploy"
+  },
+  "cloudflare": {
+    "bindings": {
+      "APP_PASSWORD": {
+        "description": "登入密碼，同時是登入 cookie 的簽章金鑰。請設一組夠長的隨機字串；之後改密碼會讓所有裝置重新登入。"
+      },
+      "DB": {
+        "description": "D1 資料庫，存點評、設定與通行金鑰公鑰。名稱可自訂。"
+      },
+      "PHOTOS": {
+        "description": "R2 bucket，存壓縮後的照片。名稱可自訂。"
+      }
+    }
+  },
+  "devDependencies": {
+    "leaflet": "1.9.4",
+    "wrangler": "^4.152.0"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "14.0.0",
+    "@simplewebauthn/server": "14.0.3"
+  }
+}

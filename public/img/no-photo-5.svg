@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-labelledby="title desc">
+  <title id="title">尚無照片：甜點</title>
+  <desc id="desc">琥珀色蛋糕與蠟燭的扁平插圖</desc>
+  <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#171e34" stroke-opacity=".055"/></pattern></defs>
+  <path fill="#f5f3ed" d="M0 0h150v150H0z"/><path fill="url(#grid)" d="M0 0h150v150H0z"/>
+  <path fill="#171e34" d="M38 63h78v52H38zm-6 51h90v7H32z"/>
+  <path d="M32 57h78v52H32z" fill="#d9a437" stroke="#171e34" stroke-width="2"/>
+  <path d="M32 57h78v15c-8 0-8 8-16 8s-8-8-16-8-8 8-16 8-8-8-15-8-8 7-15 7z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="M40 92h62" stroke="#171e34" stroke-width="2"/>
+  <path d="M67 35h12v22H67z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="M73 18c8 9 8 16 0 19-8-3-8-10 0-19z" fill="#d9a437" stroke="#171e34" stroke-width="2"/>
+  <text x="75" y="138" fill="#555a6d" font-family="-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei','Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" text-anchor="middle">尚無照片</text>
+</svg>

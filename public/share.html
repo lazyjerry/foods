@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>分享圖｜把點評做成浮水印合成在照片上</title>
+<meta name="description" content="勾選點評欄位，做成浮水印合成在照片上">
+<meta name="robots" content="noindex">
+<script>if (typeof HTMLDialogElement === "function") document.documentElement.classList.add("has-dialog");</script>
+<link rel="stylesheet" href="jerry-ui.css">
+<link rel="stylesheet" href="app.css">
+<script src="jerry-ui.js" defer></script>
+<script type="module" src="js/share.js"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f5f3ed">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="吃過筆記">
+<script type="module" src="js/pwa.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要內容</a>
+<div class="wrap is-wide">
+<header class="top">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+</header>
+<header class="masthead">
+  <p class="eyebrow">SHARE CARD</p>
+  <div class="masthead-grid">
+    <h1><span>點評</span><em>做成分享圖</em></h1>
+    <p class="lede">把這一餐的心得壓在照片上，傳給朋友看。</p>
+  </div>
+</header>
+<main id="main">
+<div class="stack"><nav class="chips" aria-label="頁面">
+  <a class="chip" href="/">點評</a>
+  <a class="chip" href="/edit">新增</a>
+  <a class="chip" href="/photos">照片集</a>
+  <a class="chip" href="/share" aria-current="page">分享</a>
+  <a class="chip" href="/settings">設定</a>
+</nav>
+<div data-tabs="click">
+  <div class="chips" role="group" aria-label="分享方式">
+    <button class="chip" type="button" data-tab="image" aria-pressed="true">分享圖</button>
+    <button class="chip" type="button" data-tab="web" aria-pressed="false">分享網頁</button>
+  </div>
+  <div data-tab-panel="image"><div class="stack"><div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="pick-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">01</span>
+  <div><h2 id="pick-title">選擇點評與欄位</h2><p>勾選要放進浮水印的內容</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="review-select">點評</label>
+  <select id="review-select"><option value="0">載入中…</option></select>
+</div>
+<div class="switches"><label class="switch"><span><strong>標題</strong></span><input type="checkbox" id="share-title"><i aria-hidden="true"></i></label><label class="switch"><span><strong>價格</strong></span><input type="checkbox" id="share-price"><i aria-hidden="true"></i></label><label class="switch"><span><strong>用餐日期</strong></span><input type="checkbox" id="share-date"><i aria-hidden="true"></i></label><label class="switch"><span><strong>地址</strong></span><input type="checkbox" id="share-address"><i aria-hidden="true"></i></label><label class="switch"><span><strong>評比</strong></span><input type="checkbox" id="share-ratings"><i aria-hidden="true"></i></label><label class="switch"><span><strong>點評內容</strong></span><input type="checkbox" id="share-body"><i aria-hidden="true"></i></label><label class="switch"><span><strong>稱呼</strong></span><input type="checkbox" id="share-nickname"><i aria-hidden="true"></i></label></div></div></section>
+<section class="card accent-blue is-roomy" aria-labelledby="source-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">02</span>
+  <div><h2 id="source-title">圖片來源</h2><p>點評照片、相簿或現場拍照</p></div>
+</div>
+<div class="stack"><fieldset class="segmented">
+  <legend class="visually-hidden">圖片來源</legend>
+  <label><input type="radio" name="source" value="review" checked><span>點評照片</span></label>
+  <label><input type="radio" name="source" value="album"><span>相簿</span></label>
+  <label><input type="radio" name="source" value="camera"><span>拍照</span></label>
+  <label><input type="radio" name="source" value="none"><span>純文字</span></label>
+</fieldset>
+<div class="app-photo-pick" id="review-photos"></div>
+<input class="app-file" id="album-input" type="file" accept="image/*" aria-label="從相簿選擇照片" hidden>
+<input class="app-file" id="camera-input" type="file" accept="image/*" capture="environment" aria-label="拍照" hidden>
+<fieldset class="segmented">
+  <legend class="visually-hidden">浮水印位置</legend>
+  <label><input type="radio" name="position" value="bottom" checked><span>下方</span></label>
+  <label><input type="radio" name="position" value="top"><span>上方</span></label>
+</fieldset>
+<div class="range">
+  <label for="opacity">底色不透明度（%） <output for="opacity">80</output></label>
+  <input id="opacity" type="range" min="40" max="95" step="5" value="80">
+  <div class="scale"><span>40</span><span>95</span></div>
+</div>
+<p class="status" id="source-status" role="status"></p></div></section>
+<section class="card accent-violet is-roomy is-wide" aria-labelledby="output-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">03</span>
+  <div><h2 id="output-title">預覽與輸出</h2><p>合成後下載或用系統分享</p></div>
+</div>
+<div class="stack"><canvas class="app-canvas" id="canvas" role="img" aria-label="分享圖預覽"></canvas>
+<div class="actions"><button class="btn" type="button" id="download-btn">下載圖片</button><button class="btn secondary" type="button" id="share-btn">分享圖片</button></div>
+<p class="status" id="out-status" role="status"></p></div></section></div>
+<aside class="note">
+  <span class="note-icon" aria-hidden="true">⌁</span>
+  <div><strong>分享圖在瀏覽器裡合成</strong><p>相簿或現場拍的照片只用來合成，不會上傳。</p></div>
+</aside></div></div>
+  <div data-tab-panel="web" hidden><div class="stack"><div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="web-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">01</span>
+  <div><h2 id="web-title">建立分享連結</h2><p>拿到連結的人不用登入就能看</p></div>
+</div>
+<div class="stack"><fieldset class="segmented">
+  <legend class="visually-hidden">分享內容</legend>
+  <label><input type="radio" name="web-kind" value="tag" checked><span>整個分類</span></label>
+  <label><input type="radio" name="web-kind" value="review"><span>單一點評</span></label>
+</fieldset>
+<div class="field">
+  <label for="web-tag">分類</label>
+  <select id="web-tag" aria-describedby="web-tag-hint"><option value="0">載入中…</option></select>
+  <p class="hint" id="web-tag-hint">列出已用在點評上的分類</p>
+</div>
+<div class="field" hidden>
+  <label for="web-review">點評</label>
+  <select id="web-review"><option value="0">載入中…</option></select>
+</div>
+<button class="btn is-block" type="button" id="web-create-btn">建立分享連結<span class="btn-arrow" aria-hidden="true">→</span></button>
+<p class="status" id="web-status" role="status"></p></div></section>
+<section class="card accent-blue is-roomy" aria-labelledby="links-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">02</span>
+  <div><h2 id="links-title">已分享的連結</h2><p>複製、開啟，或停止分享讓連結失效</p></div>
+</div>
+<div class="stack"><p class="status" id="share-list-status" role="status"></p>
+<ul class="app-key-list" id="share-list" aria-label="已分享的連結"></ul></div></section></div>
+<aside class="note is-warn">
+  <span class="note-icon" aria-hidden="true">!</span>
+  <div><strong>分享網頁不需要登入就能看</strong><p>連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。</p></div>
+</aside></div></div>
+</div></div>
+</main>
+<footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
+</div>
+<img class="jerry-mark" src="jerry.png" width="1" height="1" alt="" aria-hidden="true">
+</body>
+</html>

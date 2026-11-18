@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>新增點評｜記錄標題、價格、位置、評比與照片</title>
+<meta name="description" content="新增或編輯一筆食物點評">
+<meta name="robots" content="noindex">
+<script>if (typeof HTMLDialogElement === "function") document.documentElement.classList.add("has-dialog");</script>
+<link rel="stylesheet" href="jerry-ui.css">
+<link rel="stylesheet" href="app.css">
+<script src="jerry-ui.js" defer></script>
+<script src="vendor/leaflet/leaflet.js" defer></script>
+<script type="module" src="js/edit.js"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f5f3ed">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="吃過筆記">
+<script type="module" src="js/pwa.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要內容</a>
+<div class="wrap is-wide">
+<header class="top">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+</header>
+<header class="masthead">
+  <p class="eyebrow">NEW REVIEW</p>
+  <div class="masthead-grid">
+    <h1><span>店家點評</span><em>記下這一餐</em></h1>
+    <p class="lede">剛吃完趁印象還在，記下價格、味道和位置。</p>
+  </div>
+</header>
+<main id="main">
+<form class="app-form" id="review-form" novalidate>
+<div class="stack"><nav class="chips" aria-label="頁面">
+  <a class="chip" href="/">點評</a>
+  <a class="chip" href="/edit" aria-current="page">新增</a>
+  <a class="chip" href="/photos">照片集</a>
+  <a class="chip" href="/share">分享</a>
+  <a class="chip" href="/settings">設定</a>
+</nav>
+<div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="basic-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">01</span>
+  <div><h2 id="basic-title">基本資料</h2><p>標題、價格與點評內容</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="title">標題</label>
+  <input id="title" maxlength="100" autocomplete="off" type="text" placeholder="例如：老張牛肉麵" required>
+</div>
+<div class="field-row"><div class="field">
+  <label for="price">價格</label>
+  <input id="price" min="0" max="1000000" step="1" class="num" type="number" inputmode="numeric" aria-describedby="price-hint" required>
+  <p class="hint" id="price-hint">新台幣，整數</p>
+</div><div class="field">
+  <label for="visited-on">用餐日期</label>
+  <input id="visited-on" class="num" type="date">
+</div></div>
+<div class="field">
+  <label for="body">點評</label>
+  <textarea id="body" placeholder="味道、份量、推薦的品項…" maxlength="2000" spellcheck="false" aria-describedby="body-hint"></textarea>
+  <p class="hint" id="body-hint">0／2000 字</p>
+</div>
+<div class="stack"><div class="field">
+  <label for="tag-input">分類（選用）</label>
+  <div class="input-group">
+  <input id="tag-input" maxlength="60" list="tag-options" enterkeyhint="enter" type="text" placeholder="例如：拉麵" autocomplete="off" spellcheck="false">
+  <button type="button" id="tag-add-btn" aria-label="加入分類">加入</button>
+</div>
+  <p class="hint">最多 10 個，每個 20 字內、不含空白；點已加的分類可移除</p>
+</div>
+<datalist id="tag-options"></datalist>
+<div class="app-tag-list" id="tag-list" role="group" aria-label="已加的分類"></div></div></div></section>
+<section class="card accent-blue is-roomy" aria-labelledby="location-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">02</span>
+  <div><h2 id="location-title">位置</h2><p>點選地圖或拖曳標記，地址與座標互轉</p></div>
+</div>
+<div class="stack"><div class="app-map" id="map" role="application" aria-label="地圖：點選或拖曳標記設定位置"></div>
+<div class="field-row"><div class="field">
+  <label for="lat">緯度</label>
+  <input id="lat" min="-90" max="90" step="any" class="num" type="number" required>
+</div><div class="field">
+  <label for="lng">經度</label>
+  <input id="lng" min="-180" max="180" step="any" class="num" type="number" required>
+</div></div>
+<div class="field">
+  <label for="address">地址</label>
+  <div class="input-group">
+  <input id="address" required maxlength="300" type="text" placeholder="例如：台北市大安區忠孝東路四段 1 號" autocomplete="off" spellcheck="false">
+  <button type="button" id="geocode-btn" aria-label="以地址查座標">查座標</button>
+</div>
+  <p class="hint">按「查座標」依地址移動標記；移動標記會自動帶入地址</p>
+</div>
+<div class="app-geo-results" id="geo-results" aria-live="polite"></div>
+<div class="actions"><button class="btn secondary" type="button" id="locate-btn">使用目前位置</button><button class="btn secondary" type="button" id="reverse-btn">用座標查地址</button></div>
+<p class="status" id="geo-status" role="status"></p></div></section>
+<section class="card accent-violet is-roomy" aria-labelledby="ratings-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">03</span>
+  <div><h2 id="ratings-title">評比（選用）</h2><p>每項 1–5 顆心，也可略過</p></div>
+</div>
+<div class="stack"><label class="switch"><span><strong>加入評比</strong><small>關閉時不儲存評比</small></span><input type="checkbox" id="ratings-on"><i aria-hidden="true"></i></label>
+<div class="app-ratings" id="ratings" hidden></div></div></section>
+<section class="card accent-green is-roomy" aria-labelledby="photos-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">04</span>
+  <div><h2 id="photos-title">照片</h2><p>上傳前在裝置上壓縮，不保留原檔</p></div>
+</div>
+<div class="stack"><div class="actions"><button class="btn" type="button" id="camera-btn">拍照</button><button class="btn secondary" type="button" id="pick-btn">從相簿選擇</button><a data-dialog-open class="btn secondary" href="#illust-sheet">選擇插畫</a></div>
+<input class="app-file" id="camera-input" type="file" accept="image/*" capture="environment" aria-label="拍照" hidden>
+<input class="app-file" id="pick-input" type="file" accept="image/*" multiple aria-label="從相簿選擇照片" hidden>
+<div class="app-photo-grid" id="photo-grid"></div>
+<p class="status" id="photo-status" role="status"></p></div>
+<dialog class="sheet accent-green" id="illust-sheet" aria-labelledby="illust-sheet-title">
+  <div class="sheet-body" tabindex="-1" autofocus>
+    <div class="sheet-head">
+      <div><h2 id="illust-sheet-title">選擇插畫</h2></div>
+      <button class="sheet-x" type="button" data-dialog-close aria-label="關閉">×</button>
+    </div>
+    <p>點一張加進這筆點評的照片，儲存時一併上傳。</p>
+<div class="app-illust-grid">
+<button class="app-illust" type="button" data-illust="/img/illustrations/food-01.jpg"><img src="/img/illustrations/food-01.jpg" alt="" width="1200" height="1200" loading="lazy"><span>牛肉麵</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/food-02.jpg"><img src="/img/illustrations/food-02.jpg" alt="" width="1200" height="1200" loading="lazy"><span>滷肉飯</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/food-03.jpg"><img src="/img/illustrations/food-03.jpg" alt="" width="1200" height="1200" loading="lazy"><span>小籠包</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/food-04.jpg"><img src="/img/illustrations/food-04.jpg" alt="" width="1200" height="1200" loading="lazy"><span>珍珠奶茶</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/food-05.jpg"><img src="/img/illustrations/food-05.jpg" alt="" width="1200" height="1200" loading="lazy"><span>鹽酥雞</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/meal-01.jpg"><img src="/img/illustrations/meal-01.jpg" alt="" width="1200" height="1200" loading="lazy"><span>火鍋</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/meal-02.jpg"><img src="/img/illustrations/meal-02.jpg" alt="" width="1200" height="1200" loading="lazy"><span>便當</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/meal-03.jpg"><img src="/img/illustrations/meal-03.jpg" alt="" width="1200" height="1200" loading="lazy"><span>早餐</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/meal-04.jpg"><img src="/img/illustrations/meal-04.jpg" alt="" width="1200" height="1200" loading="lazy"><span>刈包</span></button>
+<button class="app-illust" type="button" data-illust="/img/illustrations/meal-05.jpg"><img src="/img/illustrations/meal-05.jpg" alt="" width="1200" height="1200" loading="lazy"><span>豆花</span></button>
+</div>
+    <p class="sheet-foot"><button class="btn" type="button" data-dialog-close>取消</button></p>
+  </div>
+</dialog></section>
+<section class="card accent-coral is-roomy is-wide" aria-labelledby="save-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">05</span>
+  <div><h2 id="save-title">儲存</h2><p>照片在儲存時一併上傳</p></div>
+</div>
+<div class="stack"><button class="btn is-block" type="submit" id="save-btn">儲存點評<span class="btn-arrow" aria-hidden="true">→</span></button>
+<p class="status" id="save-status" role="status"></p>
+<div class="actions"><a id="share-link" hidden class="btn secondary" href="/share">做成分享圖</a><button hidden class="btn is-link" type="button" id="delete-btn">刪除這筆點評</button></div></div></section></div>
+<aside class="note">
+  <span class="note-icon" aria-hidden="true">⌁</span>
+  <div><strong>照片在你的裝置上壓縮後才上傳</strong><p>原始照片不會離開裝置，上傳的是壓縮後的 JPEG，拍攝位置等 EXIF 資料一併移除。地址查詢經由 OpenStreetMap Nominatim。</p></div>
+</aside></div>
+</form>
+</main>
+<footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
+</div>
+<img class="jerry-mark" src="jerry.png" width="1" height="1" alt="" aria-hidden="true">
+</body>
+</html>

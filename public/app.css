@@ -1,0 +1,107 @@
+/* 專案專屬樣式：只用 .app- 開頭的 class 與 jerry-ui 的 token，規則見 templates/index.md。
+   入庫候選：.app-hearts（心形評比）、.app-photo-grid／.app-gallery（照片格）、.app-review（列表項）。 */
+
+/* 地圖 */
+.app-map { height: 340px; border: var(--line); background: var(--paper); }
+
+.app-geo-results { display: flex; flex-direction: column; gap: var(--space-2); }
+.app-geo-results:empty { display: none; }
+.app-geo-option { justify-content: flex-start; text-align: left; white-space: normal; line-height: var(--lh-snug); }
+
+/* 心形評比 */
+.app-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.app-hearts { margin: 0; padding: 0; border: 0; min-width: 0; }
+.app-hearts legend { padding: 0; font-weight: var(--fw-bold); font-size: var(--fs-sm); }
+.app-hearts-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.app-heart, .app-heart-skip { position: relative; cursor: pointer; }
+.app-heart input, .app-heart-skip input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.app-heart { padding: 0 var(--space-1); font-size: var(--fs-xl); line-height: var(--lh-tight); color: var(--track); }
+.app-heart.app-is-on { color: var(--coral); }
+.app-heart:has(input:focus-visible), .app-heart-skip:has(input:focus-visible) { outline: var(--focus); }
+.app-heart-skip { margin-left: var(--space-2); font-size: var(--fs-sm); color: var(--ink-2); }
+.app-heart-skip:has(input:checked) { color: var(--ink); font-weight: var(--fw-bold); text-decoration: underline; }
+
+/* 編輯頁照片 */
+.app-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+.app-photo-grid:empty { display: none; }
+.app-photo-tile { display: flex; flex-direction: column; border: var(--line); background: var(--card); }
+.app-photo-tile img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-bottom: var(--line); }
+.app-photo-meta { display: grid; gap: var(--space-2); padding: var(--space-2); }
+
+/* 編輯頁「選擇插畫」對話框 */
+.app-illust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-3); }
+.app-illust { display: flex; flex-direction: column; padding: 0; color: var(--ink); background: var(--card); border: var(--line); font: var(--fw-bold) var(--fs-sm)/var(--lh-snug) var(--font); cursor: pointer; }
+.app-illust img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-bottom: var(--line); }
+.app-illust span { padding: var(--space-1) var(--space-2); }
+.app-illust:hover { box-shadow: var(--shadow-sm); }
+
+/* 點評列表 */
+.app-review-list { display: grid; gap: var(--space-4); }
+.app-review-list:empty { display: none; }
+.app-review { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: var(--space-4); padding: var(--space-3); border: var(--line); background: var(--card); box-shadow: var(--shadow-sm); }
+.app-review-cover { display: block; align-self: start; }
+.app-review-cover img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border: var(--line); }
+.app-review-body { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
+.app-review-body h3 { margin: 0; font-size: var(--fs-lg); }
+.app-review-body p { margin: 0; }
+.app-review-addr { color: var(--ink-2); font-size: var(--fs-sm); }
+.app-review-hearts { color: var(--coral-ink); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+.app-review-text { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; white-space: pre-wrap; }
+
+/* 照片集 */
+.app-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-4); }
+.app-gallery:empty { display: none; }
+.app-shot { display: flex; flex-direction: column; margin: 0; border: var(--line); background: var(--card); box-shadow: var(--shadow-sm); }
+.app-shot img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-bottom: var(--line); }
+.app-shot-body { display: grid; gap: var(--space-1); padding: var(--space-3); min-width: 0; overflow-wrap: anywhere; }
+
+/* 分享頁 */
+.app-photo-pick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.app-photo-pick:empty { display: none; }
+.app-pick { width: 84px; height: 84px; padding: 0; border: var(--line); background: var(--card); cursor: pointer; }
+.app-pick img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.app-pick[aria-pressed="true"] { outline: var(--focus); box-shadow: var(--shadow-sm); }
+.app-canvas { display: block; width: 100%; max-height: 75vh; height: auto; object-fit: contain; border: var(--line); background: var(--paper); }
+
+@media (max-width: 760px) {
+  .app-map { height: 280px; }
+  .app-ratings { grid-template-columns: 1fr; }
+  .app-review { grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-3); }
+}
+
+/* 通行金鑰清單（設定頁） */
+.app-key-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.app-key-list:empty { display: none; }
+.app-key { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: var(--line); background: var(--card); }
+.app-key-body { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.app-key-meta { color: var(--ink-2); font-size: var(--fs-sm); }
+
+/* 分類標籤（ADR 019）：編輯頁已加的分類、列表上的徽章連結 */
+.app-tag-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.app-tag-list:empty { display: none; }
+.app-tag-link { color: inherit; text-decoration: none; }
+.app-tag-link:hover, .app-tag-link:focus-visible { text-decoration: underline; }
+
+/* 公開分享頁的照片（ADR 021）：data URI 載入前先保留位置 */
+.app-shared-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); margin: 0; }
+.app-shared-photos:empty { display: none; }
+.app-shared-photos figure { margin: 0; border: var(--line); background: var(--paper); }
+.app-shared-photos img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
+.app-shared-photos figcaption { padding: var(--space-2); color: var(--ink-2); font-size: var(--fs-sm); }
+.app-review.app-shared-review { grid-template-columns: minmax(0, 1fr); }
+.app-shared-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* 鎖定畫面（ADR 026）：儲存、壓縮照片時蓋住整頁，由 edit.js 的 lockScreen() 建立；0.3 秒後才淡入，快速儲存不閃 */
+.app-busy { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: var(--space-4); background: var(--backdrop); opacity: 0; animation: app-busy-in 0.2s ease 0.3s forwards; }
+.app-busy-box { display: flex; align-items: center; gap: var(--space-3); max-width: 100%; padding: var(--space-4) var(--space-5); background: var(--card); border: var(--line); box-shadow: var(--shadow); }
+.app-busy-spin { flex: none; width: 24px; height: 24px; border: var(--line); background: var(--coral); animation: app-busy-spin 1s linear infinite; }
+.app-busy-text { margin: 0; font-weight: var(--fw-bold); }
+@keyframes app-busy-in { to { opacity: 1; } }
+@keyframes app-busy-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-busy { animation-duration: 0s; }
+  .app-busy-spin { animation: none; }
+}
+
+/* 設定頁「用量」清單（X6，src/storage.js 快取值）：數值用等寬粗體，跟說明文字區分 */
+.app-usage dd { color: var(--ink); font-family: var(--mono); font-size: var(--fs-lg); font-weight: var(--fw-heavy); }

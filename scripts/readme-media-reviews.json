@@ -1,0 +1,140 @@
+{
+  "_說明": "README 截圖與影片用的虛構店家點評。店名、地址、價格、點評都是虛構的；座標只用來讓地圖有位置。由 scripts/readme-media.sh 寫進一次性的本機 D1，不碰 .wrangler/ 與正式環境。photos 為 0 的點評會顯示預設圖。reviews 的順序就是列表由上而下的順序（腳本倒序建立）。",
+  "nickname": "阿吃",
+  "reviews": [
+    {
+      "title": "巷口老王牛肉麵",
+      "price": 220,
+      "visited_on": "2026-11-02",
+      "body": "湯頭是清燉加一點豆瓣，喝得到牛骨的甜。牛腱切得厚，筋很軟。麵條偏細，建議跟老闆說要寬麵。",
+      "lat": 25.04624,
+      "lng": 121.51687,
+      "address": "台北市中正區示範路一段 12 號",
+      "tags": ["麵食", "牛肉麵"],
+      "ratings": {
+        "taste": 5,
+        "price": 4,
+        "experience": 4,
+        "ambience": 3,
+        "service": 4,
+        "portion": 5
+      },
+      "photos": 2
+    },
+    {
+      "title": "雙人鍋物所",
+      "price": 880,
+      "visited_on": "2026-11-14",
+      "body": "鴛鴦鍋的麻辣有層次，不是只有辣。肉盤油花漂亮，蔬菜盤份量很大，兩個人點一份就夠。",
+      "lat": 25.04572,
+      "lng": 121.51469,
+      "address": "台北市中正區測試路 15 號 2 樓",
+      "tags": ["火鍋"],
+      "ratings": {
+        "taste": 5,
+        "price": 3,
+        "experience": 5,
+        "ambience": 4,
+        "service": 5,
+        "portion": 4
+      },
+      "photos": 2
+    },
+    {
+      "title": "珍珠研究室",
+      "price": 65,
+      "visited_on": "2026-11-15",
+      "body": "",
+      "lat": 25.04761,
+      "lng": 121.51759,
+      "address": "台北市中正區示範路二段 5 號",
+      "tags": ["飲料"],
+      "ratings": {},
+      "photos": 0
+    },
+    {
+      "title": "阿嬤的滷肉飯",
+      "price": 85,
+      "visited_on": "2026-11-05",
+      "body": "肥瘦比例剛好，滷汁不死鹹。滷蛋要另外加，黃蘿蔔是自己醃的，很脆。",
+      "lat": 25.04546,
+      "lng": 121.51811,
+      "address": "台北市中正區示範路一段 48 號",
+      "tags": ["小吃", "便當"],
+      "ratings": {
+        "taste": 5,
+        "price": 5,
+        "experience": 4,
+        "portion": 3
+      },
+      "photos": 1
+    },
+    {
+      "title": "夜貓鹽酥雞",
+      "price": 150,
+      "visited_on": "2026-11-11",
+      "body": "雞肉醃得入味，九層塔炸得酥。胡椒鹽可以自己加，晚上十點後要排隊。",
+      "lat": 25.04667,
+      "lng": 121.5192,
+      "address": "台北市中正區測試路 88 號",
+      "tags": ["小吃", "夜市"],
+      "ratings": {
+        "taste": 4,
+        "price": 4,
+        "experience": 3,
+        "portion": 5
+      },
+      "photos": 1
+    },
+    {
+      "title": "湯圓先生豆花",
+      "price": 60,
+      "visited_on": "2026-11-09",
+      "body": "豆花有豆香，花生煮得很綿。粉圓 Q 但不硬，糖水可以選少甜。",
+      "lat": 25.045,
+      "lng": 121.51632,
+      "address": "台北市中正區範例街 27 號",
+      "tags": ["甜點"],
+      "ratings": {
+        "taste": 4,
+        "price": 5,
+        "service": 4
+      },
+      "photos": 2
+    },
+    {
+      "title": "晨光早餐店",
+      "price": 95,
+      "visited_on": "2026-11-08",
+      "body": "蛋餅皮是現擀的，外脆內軟。蘿蔔糕煎得很香，豆漿不會太甜。早上七點半以前人比較少。",
+      "lat": 25.04713,
+      "lng": 121.51589,
+      "address": "台北市中正區範例街 3 號",
+      "tags": ["早餐"],
+      "ratings": {
+        "taste": 4,
+        "price": 5,
+        "experience": 4,
+        "ambience": 3,
+        "service": 5,
+        "portion": 4
+      },
+      "photos": 1
+    },
+    {
+      "title": "小籠包研究所",
+      "price": 180,
+      "visited_on": null,
+      "body": "皮薄湯多，十八摺。還沒拍照，下次補。",
+      "lat": 25.04452,
+      "lng": 121.51749,
+      "address": "台北市中正區範例街 60 號",
+      "tags": ["麵食", "小吃"],
+      "ratings": {
+        "taste": 4,
+        "service": 3
+      },
+      "photos": 0
+    }
+  ]
+}

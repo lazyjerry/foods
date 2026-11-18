@@ -1,0 +1,6 @@
+# 登入密碼，同時是登入 cookie 的簽章金鑰；請改成夠長的隨機字串
+APP_PASSWORD=change-me
+
+# 選填：設定頁「用量」卡顯示今日 D1 讀寫列數與 Worker 請求數（API token 權限只給 Account Analytics:Read）
+# CF_ACCOUNT_ID=
+# CF_ANALYTICS_TOKEN=

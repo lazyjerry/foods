@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-labelledby="title desc">
+  <title id="title">尚無照片：飲料</title>
+  <desc id="desc">藍色外帶飲料杯的扁平插圖</desc>
+  <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#171e34" stroke-opacity=".055"/></pattern></defs>
+  <path fill="#f5f3ed" d="M0 0h150v150H0z"/><path fill="url(#grid)" d="M0 0h150v150H0z"/>
+  <path fill="#171e34" d="M48 51h62v7H48zm8 62h47v7H56z"/>
+  <path d="M43 45h62v8H43z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="m49 53 7 59h38l6-59z" fill="#2679b9" stroke="#171e34" stroke-width="2"/>
+  <path d="M59 66h31l-3 33H63z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="M85 22h8L81 66h-8z" fill="#2679b9" stroke="#171e34" stroke-width="2"/>
+  <path d="M70 78h10m-13 8h16" stroke="#171e34" stroke-width="2"/>
+  <text x="75" y="138" fill="#555a6d" font-family="-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei','Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" text-anchor="middle">尚無照片</text>
+</svg>

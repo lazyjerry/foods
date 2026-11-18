@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>設定｜分享欄位、稱呼、預設心數與照片壓縮</title>
+<meta name="description" content="設定點評與分享的預設值">
+<meta name="robots" content="noindex">
+<script>if (typeof HTMLDialogElement === "function") document.documentElement.classList.add("has-dialog");</script>
+<link rel="stylesheet" href="jerry-ui.css">
+<link rel="stylesheet" href="app.css">
+<script src="jerry-ui.js" defer></script>
+<script src="vendor/simplewebauthn/browser.umd.min.js" defer></script>
+<script type="module" src="js/settings.js"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f5f3ed">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="吃過筆記">
+<script type="module" src="js/pwa.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要內容</a>
+<div class="wrap is-wide">
+<header class="top">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+</header>
+<header class="masthead">
+  <p class="eyebrow">SETTINGS</p>
+  <div class="masthead-grid">
+    <h1><span>預設值</span><em>設定</em></h1>
+    <p class="lede">常用的評比與分享方式先設好，之後不用每次調。</p>
+  </div>
+</header>
+<main id="main">
+<form class="app-form" id="settings-form" novalidate>
+<div class="stack"><nav class="chips" aria-label="頁面">
+  <a class="chip" href="/">點評</a>
+  <a class="chip" href="/edit">新增</a>
+  <a class="chip" href="/photos">照片集</a>
+  <a class="chip" href="/share">分享</a>
+  <a class="chip" href="/settings" aria-current="page">設定</a>
+</nav>
+<div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="people-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">01</span>
+  <div><h2 id="people-title">稱呼與評比</h2><p>新增點評時套用的預設值</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="nickname">稱呼</label>
+  <input id="nickname" maxlength="30" autocomplete="nickname" type="text" placeholder="例如：小林" aria-describedby="nickname-hint">
+  <p class="hint" id="nickname-hint">顯示在分享圖上</p>
+</div>
+<div class="field">
+  <label for="default-hearts">預設心數</label>
+  <select id="default-hearts" aria-describedby="default-hearts-hint"><option value="1">1 顆心</option><option value="2">2 顆心</option><option value="3" selected>3 顆心</option><option value="4">4 顆心</option><option value="5">5 顆心</option></select>
+  <p class="hint" id="default-hearts-hint">新增點評時每項評比的起始值</p>
+</div>
+<div class="switches"><label class="switch"><span><strong>新增時開啟評比</strong><small>關閉時評比區預設收起</small></span><input type="checkbox" id="ratings-default-on"><i aria-hidden="true"></i></label></div></div></section>
+<section class="card accent-blue is-roomy" aria-labelledby="share-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">02</span>
+  <div><h2 id="share-title">分享預設</h2><p>分享頁一開始勾選的欄位</p></div>
+</div>
+<div class="stack"><div class="switches"><label class="switch"><span><strong>標題</strong></span><input type="checkbox" id="def-share-title"><i aria-hidden="true"></i></label><label class="switch"><span><strong>價格</strong></span><input type="checkbox" id="def-share-price"><i aria-hidden="true"></i></label><label class="switch"><span><strong>用餐日期</strong></span><input type="checkbox" id="def-share-date"><i aria-hidden="true"></i></label><label class="switch"><span><strong>地址</strong></span><input type="checkbox" id="def-share-address"><i aria-hidden="true"></i></label><label class="switch"><span><strong>評比</strong></span><input type="checkbox" id="def-share-ratings"><i aria-hidden="true"></i></label><label class="switch"><span><strong>點評內容</strong></span><input type="checkbox" id="def-share-body"><i aria-hidden="true"></i></label><label class="switch"><span><strong>稱呼</strong></span><input type="checkbox" id="def-share-nickname"><i aria-hidden="true"></i></label></div>
+<fieldset class="segmented">
+  <legend class="visually-hidden">浮水印位置</legend>
+  <label><input type="radio" name="def-position" value="bottom" checked><span>下方</span></label>
+  <label><input type="radio" name="def-position" value="top"><span>上方</span></label>
+</fieldset></div></section>
+<section class="card accent-green is-roomy" aria-labelledby="photo-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">03</span>
+  <div><h2 id="photo-title">照片壓縮</h2><p>上傳前的長邊尺寸與 JPEG 品質</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="max-edge">照片長邊</label>
+  <select id="max-edge" aria-describedby="max-edge-hint"><option value="1280">1280 px</option><option value="1600" selected>1600 px</option><option value="2048">2048 px</option></select>
+  <p class="hint" id="max-edge-hint">超過才縮小，不放大</p>
+</div>
+<div class="range">
+  <label for="quality">JPEG 品質（%） <output for="quality">80</output></label>
+  <input id="quality" type="range" min="60" max="95" step="5" value="80">
+  <div class="scale"><span>60</span><span>95</span></div>
+</div></div></section>
+<section class="card accent-violet is-roomy" aria-labelledby="save-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">04</span>
+  <div><h2 id="save-title">自動儲存</h2><p>變更後自動存到 D1，各裝置共用</p></div>
+</div>
+<div class="stack"><p class="status" id="settings-status" role="status"></p>
+<button class="btn is-link" type="button" id="reset-btn">恢復預設</button></div></section>
+<section class="card accent-coral is-roomy is-wide" aria-labelledby="passkey-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">05</span>
+  <div><h2 id="passkey-title">通行金鑰</h2><p>用指紋、臉部或裝置密碼登入；變更立即生效，不用按儲存</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="passkey-name">新增通行金鑰</label>
+  <div class="input-group">
+  <input id="passkey-name" maxlength="40" type="text" placeholder="例如：iPhone、MacBook" autocomplete="off" spellcheck="false">
+  <button type="button" id="add-passkey-btn" aria-label="新增通行金鑰">新增</button>
+</div>
+  <p class="hint">名稱用來辨認是哪台裝置；新增後會跳出系統的驗證視窗</p>
+</div>
+<p class="status" id="passkey-status" role="status"></p>
+<ul class="app-key-list" id="passkey-list" aria-label="已註冊的通行金鑰"></ul>
+<div class="switches"><label class="switch"><span><strong>允許密碼登入</strong><small>至少有一把通行金鑰才能關閉；關閉後登入頁只剩通行金鑰</small></span><input type="checkbox" id="password-login"><i aria-hidden="true"></i></label></div>
+<p class="status" id="password-login-status" role="status"></p></div></section>
+<section class="card accent-blue is-roomy" aria-labelledby="account-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">06</span>
+  <div><h2 id="account-title">帳號與密碼</h2><p>密碼以雜湊存在 D1；修改後其他裝置要重新登入</p></div>
+</div>
+<div class="stack"><div class="field">
+  <label for="account-username">帳號</label>
+  <input id="account-username" readonly autocomplete="username" type="text">
+</div>
+<div class="field">
+  <label for="current-password">目前的密碼</label>
+  <input id="current-password" autocomplete="current-password" maxlength="128" type="password">
+</div>
+<div class="field">
+  <label for="new-password">新密碼</label>
+  <input id="new-password" autocomplete="new-password" maxlength="128" type="password" aria-describedby="new-password-hint">
+  <p class="hint" id="new-password-hint">8–128 個字，開頭與結尾不能是空白</p>
+</div>
+<div class="field">
+  <label for="confirm-password">再輸入一次新密碼</label>
+  <input id="confirm-password" autocomplete="new-password" maxlength="128" type="password">
+</div>
+<button class="btn is-block" type="button" id="change-pw-btn">修改密碼<span class="btn-arrow" aria-hidden="true">→</span></button>
+<p class="status" id="account-status" role="status"></p></div></section>
+<section class="card accent-green is-roomy" aria-labelledby="usage-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">07</span>
+  <div><h2 id="usage-title">用量</h2><p>已用空間與今日（UTC）讀寫次數，每小時更新</p></div>
+</div>
+<div class="stack"><dl class="def-list app-usage" id="usage-stats">
+  <dt>D1 已用空間<small>點評、設定等文字資料</small></dt><dd>—</dd>
+  <dt>R2 已用空間<small>壓縮後的照片</small></dt><dd>—</dd>
+  <dt>D1 今日讀取<small>帳號合計；免費方案每日 500 萬列</small></dt><dd>—</dd>
+  <dt>D1 今日寫入<small>帳號合計；免費方案每日 10 萬列</small></dt><dd>—</dd>
+  <dt>Worker 今日請求<small>帳號合計；免費方案每日 10 萬次</small></dt><dd>—</dd>
+</dl>
+<p class="status" id="usage-status" role="status"></p></div></section></div></div>
+</form>
+</main>
+<footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
+</div>
+<img class="jerry-mark" src="jerry.png" width="1" height="1" alt="" aria-hidden="true">
+</body>
+</html>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-labelledby="title desc">
+  <title id="title">尚無照片：麵</title>
+  <desc id="desc">紫色麵碗與麵條的扁平插圖</desc>
+  <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#171e34" stroke-opacity=".055"/></pattern></defs>
+  <path fill="#f5f3ed" d="M0 0h150v150H0z"/><path fill="url(#grid)" d="M0 0h150v150H0z"/>
+  <path fill="#171e34" d="M40 70h76v8H40zm15 45h48v6H55z"/>
+  <path d="M34 64h76v8H34z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="M40 72h64c-3 27-13 40-32 40S43 99 40 72z" fill="#7652ca" stroke="#171e34" stroke-width="2"/>
+  <path d="M49 63c0-12 9-14 9-23m12 23c0-12 9-14 9-23m12 23c0-12 9-14 9-23" fill="none" stroke="#171e34" stroke-width="2"/>
+  <path d="M91 20l5 2-18 41-5-2zm11 5 5 2-18 41-5-2z" fill="#7652ca" stroke="#171e34" stroke-width="2" stroke-linejoin="miter"/>
+  <text x="75" y="138" fill="#555a6d" font-family="-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei','Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" text-anchor="middle">尚無照片</text>
+</svg>

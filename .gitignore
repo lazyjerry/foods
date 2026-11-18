@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+test-results/
+.DS_Store
+__pycache__/
+
+# 示範店家資料與補照片腳本只給這台主機用，不進版控
+scripts/seed-demo.sql
+scripts/seed-demo.sh
+scripts/seed-demo-photos.sh
+scripts/replace-demo-photos.sh

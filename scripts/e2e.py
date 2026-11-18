@@ -1,0 +1,292 @@
+#!/usr/bin/env python3
+"""瀏覽器端到端測試（Playwright）：登入 → 新增點評（定位、評比、壓縮上傳）→ 列表搜尋 → 照片集下載 → 分享合成 → 設定 → 刪除。
+
+用法：python3 scripts/e2e.py [BASE_URL] [PASSWORD] [--shots 目錄]
+預設 http://localhost:8787（通行金鑰不接受 IP 當 RP ID）、dev-password。地址查詢的兩個 API 會被攔截改回假資料，不打 Nominatim。
+"""
+import argparse
+import io
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+ap = argparse.ArgumentParser()
+ap.add_argument("base", nargs="?", default="http://localhost:8787")  # 通行金鑰的 RP ID 不能是 IP
+ap.add_argument("password", nargs="?", default="dev-password")
+ap.add_argument("--account", default="admin")
+ap.add_argument("--shots")
+args = ap.parse_args()
+BASE = args.base.rstrip("/")
+fails = []
+
+
+def ok(name, cond, detail=""):
+    print(("通過：" if cond else "失敗：") + name + ("" if cond else f"（{detail}）"))
+    if not cond:
+        fails.append(name)
+
+
+def make_jpeg(path, w=3000, h=2000):
+    # 用瀏覽器以外的方式產生大圖：寫一張未壓縮 BMP，交給瀏覽器 decode 測壓縮
+    import struct
+    row = (w * 3 + 3) & ~3
+    data = bytearray()
+    for y in range(h):
+        line = bytearray()
+        for x in range(w):
+            line += bytes(((x * 255) // w, (y * 255) // h, 128))
+        line += b"\x00" * (row - w * 3)
+        data += line
+    header = b"BM" + struct.pack("<IHHI", 54 + len(data), 0, 0, 54) + struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(data), 2835, 2835, 0, 0)
+    path.write_bytes(header + data)
+
+
+def shot(page, name):
+    if args.shots:
+        Path(args.shots).mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(Path(args.shots) / f"{name}.png"), full_page=True)
+
+
+tmp = Path(tempfile.mkdtemp())
+big = tmp / "big.bmp"
+make_jpeg(big)
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    ctx = browser.new_context(geolocation={"latitude": 25.0339, "longitude": 121.5645}, permissions=["geolocation"], locale="zh-TW", accept_downloads=True)
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    # 地圖圖磚與地址服務都不打外部
+    page.route("https://tile.openstreetmap.org/**", lambda r: r.fulfill(status=204, body=""))
+    page.route("**/api/geo/reverse**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"address": "台北市信義區信義路五段7號", "label": "台北 101"})))
+    page.route("**/api/geo/search**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"results": [
+        {"lat": 25.0418, "lng": 121.5654, "address": "台北市信義區市府路1號", "label": "臺北市政府, 市府路, 信義區"},
+        {"lat": 25.0478, "lng": 121.517, "address": "台北市中正區北平西路3號", "label": "臺北車站, 北平西路, 中正區"}]})))
+
+    page.goto(BASE + "/edit")
+    ok("未登入導向登入頁", "/login" in page.url, page.url)
+    page.fill("#username", args.account)
+    page.fill("#password", "wrong")
+    page.click("#login-form button[type=submit]")
+    page.wait_for_function("document.querySelector('#login-status').textContent.includes('密碼不正確')")
+    ok("錯誤密碼顯示訊息", True)
+    page.fill("#password", args.password)
+    page.click("#login-form button[type=submit]")
+    page.wait_for_url("**/edit")
+    ok("登入後回到原頁", page.url.endswith("/edit"), page.url)
+
+    # 新增點評
+    page.wait_for_function("document.querySelector('#address').value.length > 0", timeout=15000)
+    ok("預設目前位置並帶入地址", abs(float(page.input_value("#lat")) - 25.0339) < 1e-4 and "信義路" in page.input_value("#address"))
+    ok("地圖載入（Leaflet CSS 動態插入）", page.locator(".leaflet-container").count() == 1 and page.locator("link[data-leaflet]").count() == 1)
+
+    page.click("#save-btn")
+    ok("必填驗證：標題", "請輸入標題" in page.text_content("#save-status"))
+    page.fill("#title", "E2E 測試拉麵")
+    page.fill("#price", "260")
+    page.fill("#body", "叉燒很厚，湯偏鹹。")
+    ok("字數計數", page.text_content("#body-hint") == "9／2000 字", page.text_content("#body-hint"))
+
+    page.fill("#address", "市府路")
+    page.click("#geocode-btn")
+    page.wait_for_selector(".app-geo-option")
+    page.locator(".app-geo-option").first.click()
+    ok("地址查座標並套用", abs(float(page.input_value("#lat")) - 25.0418) < 1e-4 and page.input_value("#address") == "台北市信義區市府路1號")
+
+    ok("評比預設關閉", page.is_hidden("#ratings"))
+    page.click("label.switch:has(#ratings-on)")
+    ok("開啟評比後顯示", page.is_visible("#ratings"))
+    checked = page.eval_on_selector_all(".app-hearts input:checked", "els => els.map(e => e.value)")
+    ok("每項預設 3 顆心", checked == ["3"] * 6, checked)
+    page.click('.app-hearts[data-key="taste"] .app-heart:nth-of-type(5)')
+    page.click('.app-hearts[data-key="portion"] .app-heart-skip')
+    ok("點心形會塗色", page.locator('.app-hearts[data-key="taste"] .app-heart.app-is-on').count() == 5)
+
+    page.set_input_files("#pick-input", str(big))
+    page.wait_for_function("document.querySelector('#photo-status').textContent.includes('已壓縮')", timeout=20000)
+    meta = page.text_content(".app-photo-tile .meta")
+    ok("照片壓縮到長邊 1600", "1600×1067" in meta, meta)
+    page.fill(".app-photo-tile input", "招牌叉燒")
+    shot(page, "edit")
+    page.click("#save-btn")
+    page.wait_for_function("document.querySelector('#save-status').textContent === '已儲存'", timeout=20000)
+    ok("儲存點評與上傳照片", "已上傳" in page.text_content(".app-photo-tile .meta") and "id=" in page.url, page.text_content("#save-status"))
+    rid = page.url.split("id=")[1]
+
+    data = page.evaluate(f"fetch('/api/reviews/{rid}').then(r => r.json())")["review"]
+    ok("評比存入（份量略過）", data["ratings"] == {"taste": 5, "price": 3, "experience": 3, "ambience": 3, "service": 3}, data["ratings"])
+    ok("照片只存壓縮檔", data["photos"][0]["bytes"] < big.stat().st_size / 10 and data["photos"][0]["width"] == 1600, data["photos"][0])
+
+    # 選擇插畫：開對話框、點一張就加進照片並關閉；測完移除這張，不影響後面的測試
+    page.click('a[href="#illust-sheet"]')
+    ok("插畫對話框開啟", page.evaluate("document.querySelector('#illust-sheet').open"))
+    page.click('.app-illust:has-text("滷肉飯")')
+    page.wait_for_function("document.querySelectorAll('.app-photo-tile').length === 2", timeout=20000)
+    ok("選插畫後加入一張待上傳照片並關閉對話框",
+       "待上傳" in page.text_content(".app-photo-tile:last-child .meta") and not page.evaluate("document.querySelector('#illust-sheet').open"))
+    page.click(".app-photo-tile:last-child [data-remove]")
+
+    # 列表與搜尋
+    page.goto(BASE + "/")
+    page.wait_for_selector(".app-review")
+    page.fill("#q", "叉燒 拉麵")
+    page.click("#search-btn")
+    page.wait_for_function("document.querySelector('#list-status').textContent.includes('結果')")
+    ok("列表搜尋", page.locator(".app-review").count() >= 1 and "E2E 測試拉麵" in page.text_content(".app-review"))
+    shot(page, "list")
+
+    # 照片集
+    page.goto(BASE + "/photos?q=招牌叉燒")
+    page.wait_for_selector(".app-shot")
+    with page.expect_download() as dl:
+        page.click(".app-shot a[download]")
+    d = dl.value
+    path = d.path()
+    ok("下載壓縮照片", Path(path).read_bytes()[:3] == b"\xff\xd8\xff" and d.suggested_filename.endswith(".jpg"), d.suggested_filename)
+    shot(page, "photos")
+
+    # 設定
+    page.goto(BASE + "/settings")
+    page.wait_for_function("!document.querySelector('#settings-form').inert")
+    page.fill("#nickname", "小林")
+    page.select_option("#default-hearts", "4")
+    page.click("label.switch:has(#def-share-body)")
+    page.wait_for_function("document.querySelector('#settings-status').textContent.includes('已儲存')")
+    page.reload()
+    page.wait_for_function("document.querySelector('#nickname').value === '小林'")
+    ok("設定儲存並重新載入", page.input_value("#default-hearts") == "4" and not page.is_checked("#def-share-body"))
+    shot(page, "settings")
+    puts = []
+    def on_put(r):
+        if r.method == "PUT" and r.url.endswith("/api/settings"):
+            puts.append(r.url)
+    page.on("request", on_put)
+    page.click("label.switch:has(#def-share-price)")
+    page.click("label.switch:has(#def-share-price)")
+    page.fill("#nickname", "小林林")
+    page.fill("#nickname", "小林")
+    page.wait_for_timeout(2000)
+    ok("來回切換、改回原值不寫入", len(puts) == 0, len(puts))
+    page.select_option("#default-hearts", "5")
+    page.select_option("#default-hearts", "4")
+    page.select_option("#default-hearts", "2")
+    page.wait_for_function("document.querySelector('#settings-status').textContent.includes('已儲存')")
+    ok("連續變動合併成一次寫入", len(puts) == 1, len(puts))
+    page.select_option("#default-hearts", "4")
+    page.wait_for_function("document.querySelector('#settings-status').textContent.includes('已儲存')")
+    page.remove_listener("request", on_put)
+
+    # 分享
+    page.goto(BASE + f"/share?id={rid}")
+    page.wait_for_function("document.querySelector('#source-status').textContent.includes('已使用')", timeout=15000)
+    ok("分享頁套用設定（點評內容預設不勾）", not page.is_checked("#share-body") and page.is_checked("#share-nickname"))
+    size = page.evaluate("[canvas.width, canvas.height]")
+    ok("合成照片尺寸", size == [1600, 1067], size)
+    page.click("label:has(input[name=source][value=none])")
+    page.wait_for_function("document.querySelector('#source-status').textContent.includes('純文字')")
+    ok("純文字分享圖", page.evaluate("canvas.width") == 1080)
+    page.set_input_files("#album-input", str(big))
+    page.wait_for_function("document.querySelector('#source-status').textContent.includes('相簿照片')", timeout=15000)
+    ok("相簿照片合成", page.evaluate("canvas.width") == 2048)
+    with page.expect_download() as dl:
+        page.click("#download-btn")
+    ok("下載分享圖", dl.value.suggested_filename.endswith("-分享.jpg"), dl.value.suggested_filename)
+    shot(page, "share")
+
+    # 新增時套用預設心數 4
+    page.goto(BASE + "/edit")
+    page.wait_for_function("!document.querySelector('#review-form').inert")
+    page.click("label.switch:has(#ratings-on)")
+    checked = page.eval_on_selector_all(".app-hearts input:checked", "els => els.map(e => e.value)")
+    ok("新增點評套用預設 4 顆心", checked == ["4"] * 6, checked)
+
+    # 帳號與密碼卡：顯示帳號、確認不一致、目前密碼錯誤（回 400，不跳登入頁）；實際改密碼由 smoke-api.sh 測
+    page.goto(BASE + "/settings")
+    page.wait_for_function("document.querySelector('#account-username').value !== ''")
+    ok("設定頁顯示帳號", page.input_value("#account-username") == args.account, page.input_value("#account-username"))
+    page.fill("#current-password", args.password)
+    page.fill("#new-password", "e2e-new-password")
+    page.fill("#confirm-password", "e2e-different")
+    page.press("#confirm-password", "Enter")
+    page.wait_for_function("document.querySelector('#account-status').textContent.includes('不一樣')")
+    ok("確認密碼不一致，按 Enter 不送出設定", "已儲存設定" not in page.text_content("#settings-status"))
+    page.fill("#current-password", "wrong-password")
+    page.fill("#confirm-password", "e2e-new-password")
+    page.click("#change-pw-btn")
+    page.wait_for_function("document.querySelector('#account-status').textContent.includes('目前的密碼不正確')")
+    ok("目前密碼錯誤顯示訊息、不跳登入頁", page.url.endswith("/settings"), page.url)
+
+    # 通行金鑰：Chromium 虛擬驗證器（CDP），註冊 → 停用密碼 → 登出 → 通行金鑰登入 → 恢復
+    cdp = ctx.new_cdp_session(page)
+    cdp.send("WebAuthn.enable")
+    auth_id = cdp.send("WebAuthn.addVirtualAuthenticator", {"options": {
+        "protocol": "ctap2", "transport": "internal", "hasResidentKey": True,
+        "hasUserVerification": True, "isUserVerified": True, "automaticPresenceSimulation": True}})["authenticatorId"]
+    page.goto(BASE + "/settings")
+    page.wait_for_function("!document.querySelector('#settings-form').inert")
+    page.wait_for_function("document.querySelector('#passkey-status').textContent.includes('還沒有通行金鑰')")
+    ok("沒有金鑰時不能關閉密碼登入", page.is_checked("#password-login") and page.is_disabled("#password-login"))
+    page.fill("#passkey-name", "E2E 金鑰")
+    page.press("#passkey-name", "Enter")
+    page.wait_for_function("document.querySelector('#passkey-status').textContent.includes('已新增')", timeout=15000)
+    ok("名稱欄按 Enter 新增通行金鑰，不送出設定", page.locator("#passkey-list .app-key").count() == 1
+       and "已儲存設定" not in page.text_content("#settings-status"), page.text_content("#passkey-status"))
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("label.switch:has(#password-login)")
+    page.wait_for_function("document.querySelector('#password-login-status').textContent.includes('已停用')")
+    ok("停用密碼登入", not page.is_checked("#password-login"))
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("#passkey-list button[data-del]")
+    page.wait_for_function("document.querySelector('#passkey-status').textContent.includes('不能刪除最後')")
+    ok("密碼停用時不能刪最後一把金鑰", page.locator("#passkey-list .app-key").count() == 1)
+    shot(page, "settings-passkey")
+
+    page.click("#logout-btn")
+    page.wait_for_url("**/login")
+    page.wait_for_selector("#passkey-btn:not([hidden])")
+    ok("登入頁只剩通行金鑰", page.is_hidden("#login-form") and page.is_visible("#passkey-btn"))
+    st = page.evaluate("fetch('/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: %s, password: %s})}).then(r => r.status)" % (json.dumps(args.account), json.dumps(args.password)))
+    ok("停用後密碼 API 回 403", st == 403, st)
+    shot(page, "login-passkey")
+    page.click("#passkey-btn")
+    page.wait_for_url(BASE + "/", timeout=15000)
+    keys = page.evaluate("fetch('/api/passkeys').then(r => r.json())")["passkeys"]
+    ok("通行金鑰登入並記錄使用時間", len(keys) == 1 and keys[0]["lastUsedAt"], keys)
+
+    page.goto(BASE + "/settings")
+    page.wait_for_function("!document.querySelector('#settings-form').inert")
+    page.wait_for_selector("#passkey-list .app-key")
+    page.click("label.switch:has(#password-login)")
+    page.wait_for_function("document.querySelector('#password-login-status').textContent.includes('已允許')")
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("#passkey-list button[data-del]")
+    page.wait_for_function("document.querySelector('#passkey-status').textContent.includes('已刪除')")
+    ok("恢復密碼登入並刪除金鑰", page.locator("#passkey-list .app-key").count() == 0 and page.is_checked("#password-login"))
+    cdp.send("WebAuthn.removeVirtualAuthenticator", {"authenticatorId": auth_id})
+
+    # 手機寬度：有資料時不可水平捲動
+    page.set_viewport_size({"width": 375, "height": 667})
+    for path in ["/", f"/edit?id={rid}", "/photos", f"/share?id={rid}", "/settings"]:
+        page.goto(BASE + path)
+        page.wait_for_load_state("networkidle")
+        over = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        ok(f"手機無水平捲動 {path}", over <= 0, over)
+        shot(page, "m" + path.replace("/", "_").replace("?", "_"))
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    # 清理
+    page.evaluate("fetch('/api/settings', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: '{}'})")
+    page.goto(BASE + f"/edit?id={rid}")
+    page.wait_for_selector("#delete-btn:not([hidden])")
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("#delete-btn")
+    page.wait_for_url(BASE + "/")
+    ok("刪除點評", True)
+    ok("沒有 JavaScript 錯誤", not errors, errors)
+    browser.close()
+
+sys.exit(1 if fails else 0)

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-labelledby="title desc">
+  <title id="title">尚無照片：便當</title>
+  <desc id="desc">綠色便當盒與配菜的扁平插圖</desc>
+  <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#171e34" stroke-opacity=".055"/></pattern></defs>
+  <path fill="#f5f3ed" d="M0 0h150v150H0z"/><path fill="url(#grid)" d="M0 0h150v150H0z"/>
+  <path fill="#171e34" d="M33 40h90v76H33z"/>
+  <path d="M27 34h90v76H27z" fill="#fff" stroke="#171e34" stroke-width="2"/>
+  <path d="M27 72h90M75 34v76" stroke="#171e34" stroke-width="2"/>
+  <path d="M34 41h34v24H34z" fill="#398a70" stroke="#171e34" stroke-width="2"/>
+  <path d="M82 42h27v22H82z" fill="#398a70" stroke="#171e34" stroke-width="2"/>
+  <path d="M35 80h32v22H35z" fill="#398a70" stroke="#171e34" stroke-width="2"/>
+  <path d="m86 83 9-7 11 7-4 15H90z" fill="#398a70" stroke="#171e34" stroke-width="2"/>
+  <path d="M43 46v14m8-14v14m8-14v14" stroke="#fff" stroke-width="3"/>
+  <text x="75" y="138" fill="#555a6d" font-family="-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei','Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" text-anchor="middle">尚無照片</text>
+</svg>
