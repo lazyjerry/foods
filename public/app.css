@@ -184,3 +184,30 @@ main:has(.app-fab) { padding-bottom: 112px; }
 .app-card-preview { display: grid; place-items: center; min-height: 160px; max-height: 52vh; overflow-y: auto; padding: var(--space-3); background: var(--paper); border: var(--line); }
 .app-card-preview img { display: block; width: 100%; height: auto; }
 .app-card-preview .meta { margin: 0; }
+
+/* 可搜尋的下拉選單（js/combo.js，Select2 風格）：按鈕外觀比照 .field select，彈出層是墨線＋硬陰影，清單上方有搜尋框 */
+.app-combo { position: relative; min-width: 0; }
+/* 原生 select 搬進 .app-combo 裡只做視覺隱藏：兩層 class 才蓋得過 .field select 的尺寸 */
+.app-combo > .app-combo-native { position: absolute; top: 0; left: 0; width: 1px; height: 1px; min-height: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; pointer-events: none; }
+.app-combo-btn { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--control-h); padding: 9px var(--space-3); color: var(--ink); background: var(--white); border: var(--line); border-radius: 0; font: inherit; text-align: left; cursor: pointer; }
+.app-combo-btn:disabled { color: var(--muted); cursor: default; }
+.app-combo-value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-combo-arrow { flex: none; width: 10px; height: 10px; margin: 0 var(--space-1); border-right: var(--line); border-bottom: var(--line); transform: translateY(-25%) rotate(45deg); transition: transform 0.15s ease; }
+.app-combo.is-open .app-combo-btn { box-shadow: var(--shadow-sm); }
+.app-combo.is-open .app-combo-arrow { transform: translateY(25%) rotate(-135deg); }
+.app-combo-pop { position: absolute; top: calc(100% + var(--space-1)); left: 0; right: 0; z-index: 800; display: grid; gap: var(--space-2); padding: var(--space-2); background: var(--card); border: var(--line); box-shadow: var(--shadow-sm); }
+.app-combo-pop[hidden] { display: none; }
+/* 字級 16px：iOS 聚焦輸入框時才不會放大整頁 */
+.app-combo-search { width: 100%; min-height: 40px; padding: var(--space-2) var(--space-3); color: var(--ink); background: var(--white); border: var(--line); border-radius: 0; font: inherit; font-size: var(--fs-md); }
+.app-combo-search:focus-visible { outline: var(--focus); outline-offset: 0; }
+.app-combo-list { max-height: min(320px, 50vh); margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; }
+.app-combo-list:empty { display: none; }
+.app-combo-option { padding: var(--space-2) var(--space-3); border-left: var(--accent-bar) solid transparent; line-height: var(--lh-snug); overflow-wrap: anywhere; cursor: pointer; }
+.app-combo-option.is-active { background: var(--paper); border-left-color: var(--coral); }
+.app-combo-option[aria-selected="true"] { color: var(--card); background: var(--ink); font-weight: var(--fw-bold); }
+.app-combo-option[aria-selected="true"].is-active { border-left-color: var(--coral); }
+.app-combo-option mark { color: inherit; background: none; font-weight: var(--fw-black); text-decoration: underline 2px var(--coral); text-underline-offset: 3px; }
+.app-combo-empty { margin: 0; padding: var(--space-2) var(--space-3); color: var(--ink-2); font-size: var(--fs-sm); }
+@media (prefers-reduced-motion: reduce) {
+  .app-combo-arrow { transition: none; }
+}

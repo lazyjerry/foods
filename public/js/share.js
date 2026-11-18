@@ -3,6 +3,7 @@
 import { $, RATING_DEFS, SHARE_FIELDS, api, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
 import { loadImage } from "./photo.js";
 import { openShareCard } from "./share-card.js";
+import { combo } from "./combo.js";
 
 const params = new URLSearchParams(location.search);
 const select = $("#review-select");
@@ -446,6 +447,7 @@ function openWebTabIfAsked() {
 
 async function init() {
   bindLogout();
+  for (const el of [select, webTag, webReview]) combo(el); // 可搜尋的下拉選單，值與 change 事件仍走原生 select
   openWebTabIfAsked();
   loadShares();
   const main = $("#main");
