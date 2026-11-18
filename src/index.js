@@ -9,7 +9,7 @@ import * as shares from "./shares.js";
 import { storageUsage } from "./storage.js";
 
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
-const PUBLIC_PATHS = new Set(["/login", "/login.html", "/jerry-ui.css", "/jerry-ui.js", "/app.css", "/jerry.png", "/js/login.js", "/js/common.js", "/js/shared.js", "/favicon.ico", "/vendor/simplewebauthn/browser.umd.min.js",
+const PUBLIC_PATHS = new Set(["/login", "/login.html", "/jerry-ui.css", "/jerry-ui.js", "/app.css", "/jerry.png", "/js/login.js", "/js/common.js", "/js/shared.js", "/js/share-card.js", "/favicon.ico", "/vendor/simplewebauthn/browser.umd.min.js",
   // PWA：manifest 預設不帶 cookie 抓取；sw.js、離線頁與 icon 在登入頁就要拿得到
   "/manifest.webmanifest", "/sw.js", "/js/pwa.js", "/offline", "/offline.html",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"]);

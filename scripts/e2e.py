@@ -255,6 +255,15 @@ with sync_playwright() as p:
     raw = page.evaluate(f"fetch('/api/public/shares/{tok}/photos/{pid}').then(r => r.json())")["src"]
     ok("關掉稱呼浮水印時公開頁照片不壓浮水印", page.evaluate("document.querySelector('#shared-list img').src") == raw)
     page.evaluate(put_settings, cur)
+    # 公開頁用到的模組都要免登入拿得到：沒登入的訪客也能開分享卡片
+    anon = browser.new_context(locale="zh-TW")
+    apage = anon.new_page()
+    apage.goto(BASE + f"/s/{tok}")
+    apage.wait_for_selector("#share-open:not([hidden])", timeout=15000)
+    apage.click("#share-open")
+    apage.wait_for_function(card_ready, timeout=15000)
+    ok("未登入訪客可開分享卡片", apage.evaluate("document.querySelector('#share-card-preview img').naturalWidth") == 1080)
+    anon.close()
     page.goto(BASE + f"/s/{tok}")
     page.wait_for_function("document.querySelector('#shared-list img')?.src.startsWith('data:')", timeout=15000)
     ok("開著稱呼浮水印時公開頁照片壓浮水印", page.evaluate("document.querySelector('#shared-list img').src") != raw)
