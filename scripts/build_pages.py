@@ -32,7 +32,14 @@ ILLUSTRATIONS = [("food-01.jpg", "牛肉麵"), ("food-02.jpg", "滷肉飯"), ("f
                  ("food-10.jpg", "肉圓"), ("food-11.jpg", "麵線"), ("food-12.jpg", "水餃"), ("food-13.jpg", "炒飯"),
                  ("food-14.jpg", "拉麵"), ("food-15.jpg", "壽司"), ("food-16.jpg", "咖哩飯"), ("food-17.jpg", "義大利麵"),
                  ("food-18.jpg", "披薩"), ("food-19.jpg", "漢堡薯條"), ("food-20.jpg", "牛排"), ("food-21.jpg", "燒肉"),
-                 ("food-22.jpg", "芒果冰"), ("food-23.jpg", "咖啡"), ("food-24.jpg", "蛋糕"), ("food-25.jpg", "蔥油餅")]
+                 ("food-22.jpg", "芒果冰"), ("food-23.jpg", "咖啡"), ("food-24.jpg", "蛋糕"), ("food-25.jpg", "蔥油餅"),
+                 ("food-26.jpg", "鍋貼"), ("food-27.jpg", "胡椒餅"), ("food-28.jpg", "碗粿"), ("food-29.jpg", "米糕"),
+                 ("food-30.jpg", "擔仔麵"), ("food-31.jpg", "涼麵"), ("food-32.jpg", "飯糰"), ("food-33.jpg", "燒餅油條"),
+                 ("food-34.jpg", "滷味"), ("food-35.jpg", "大腸包小腸"), ("food-36.jpg", "車輪餅"), ("food-37.jpg", "地瓜球"),
+                 ("food-38.jpg", "韓式炸雞"), ("food-39.jpg", "石鍋拌飯"), ("food-40.jpg", "越南河粉"), ("food-41.jpg", "打拋豬"),
+                 ("food-42.jpg", "港式點心"), ("food-43.jpg", "烤鴨"), ("food-44.jpg", "鬆餅"), ("food-45.jpg", "三明治"),
+                 ("food-46.jpg", "蛋餅"), ("food-47.jpg", "蘿蔔糕"), ("food-48.jpg", "麻婆豆腐"), ("food-49.jpg", "烏龍麵"),
+                 ("food-50.jpg", "冰淇淋")]
 
 
 def sn(code, **fields):
