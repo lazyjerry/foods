@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>統計｜評比排名、兩項評比對照與用餐趨勢</title>
+<meta name="description" content="依日期範圍統計點評、評比排名與用餐趨勢">
+<meta name="robots" content="noindex">
+<script>if (typeof HTMLDialogElement === "function") document.documentElement.classList.add("has-dialog");</script>
+<link rel="stylesheet" href="jerry-ui.css">
+<link rel="stylesheet" href="app.css">
+<script src="jerry-ui.js" defer></script>
+<script type="module" src="js/stats.js"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f5f3ed">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="吃過筆記">
+<script type="module" src="js/pwa.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要內容</a>
+<div class="wrap is-wide">
+<header class="top">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
+  <div class="top-end"><button class="btn is-sm secondary" type="button" id="logout-btn">登出</button></div>
+</header>
+<header class="masthead">
+  <p class="eyebrow">REVIEW STATS</p>
+  <div class="masthead-grid">
+    <h1><span>點評統計</span><em>回顧與修正</em></h1>
+    <p class="lede">選一段日期，看吃了幾餐、哪家該改分數。</p>
+  </div>
+</header>
+<main id="main">
+<div class="stack"><nav class="chips" aria-label="頁面">
+  <a class="chip" href="/">點評</a>
+  <a class="chip" href="/edit">新增</a>
+  <a class="chip" href="/photos">照片集</a>
+  <a class="chip" href="/share">分享</a>
+  <a class="chip" href="/settings">設定</a>
+  <a class="chip" href="/stats" aria-current="page">統計</a>
+</nav>
+<div class="card-grid"><section class="card accent-coral is-roomy is-wide" aria-labelledby="range-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">01</span>
+  <div><h2 id="range-title">日期範圍</h2><p>以用餐日期為準，沒填用餐日期的用建立日期</p></div>
+</div>
+<div class="stack"><p class="app-scenario"><strong>情境</strong>想回顧某段期間吃了什麼，選快速範圍或自訂日期，下面每張統計都跟著換。</p>
+<form class="panel" id="range-form"><div class="stack"><fieldset class="segmented">
+  <legend class="visually-hidden">快速範圍</legend>
+  <label><input type="radio" name="range" value="30"><span>近 30 天</span></label>
+  <label><input type="radio" name="range" value="90"><span>近 3 個月</span></label>
+  <label><input type="radio" name="range" value="365"><span>近一年</span></label>
+  <label><input type="radio" name="range" value="all" checked><span>全部</span></label>
+</fieldset>
+<div class="field-row"><div class="field">
+  <label for="stats-from">開始日期</label>
+  <input id="stats-from" class="num" type="date">
+</div><div class="field">
+  <label for="stats-to">結束日期</label>
+  <input id="stats-to" class="num" type="date">
+</div></div>
+<button class="btn is-block" type="submit" id="range-btn">套用日期<span class="btn-arrow" aria-hidden="true">→</span></button>
+<p class="status" id="stats-status" role="status"></p></div></form></div></section>
+<section class="card accent-blue is-roomy is-wide" aria-labelledby="overview-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">02</span>
+  <div><h2 id="overview-title">總覽</h2><p>範圍內的筆數、花費、平均心數與常用分類</p></div>
+</div>
+<div class="stack"><p class="app-scenario"><strong>情境</strong>月底想知道這段期間外食幾次、花了多少、整體滿不滿意，看這一張。</p>
+<dl class="stats" id="kpi" aria-live="polite">
+  <div class="stat is-total"><dt>點評</dt><dd>—</dd></div>
+  <div class="stat"><dt>總花費</dt><dd>—</dd></div>
+  <div class="stat"><dt>平均每餐</dt><dd>—</dd></div>
+  <div class="stat"><dt>平均心數</dt><dd>—</dd></div>
+  <div class="stat"><dt>有評比</dt><dd>—</dd></div>
+  <div class="stat"><dt>最貴一餐</dt><dd>—</dd></div>
+  <div class="stat"><dt>最便宜一餐</dt><dd>—</dd></div>
+</dl>
+<div class="split"><div class="stack"><h3>各項評比平均</h3>
+<div class="app-meters" id="cat-avg"></div></div><div class="stack"><h3>常用分類</h3>
+<div class="app-top-tags" id="top-tags"></div></div></div></div></section>
+<section class="card accent-violet is-roomy is-wide" aria-labelledby="rank-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">03</span>
+  <div><h2 id="rank-title">最好與最壞的 5 筆</h2><p>依綜合或單項評比排序，點「修改」直接改</p></div>
+</div>
+<div class="stack"><p class="app-scenario"><strong>情境</strong>覺得哪家分數給得太高或太低，從這裡按「修改」直接進編輯頁調整。</p>
+<div class="field">
+  <label for="rank-basis">排名依據</label>
+  <select id="rank-basis"><option value="overall" selected>綜合（有填的評比平均）</option><option value="taste">口味</option><option value="price">價位</option><option value="experience">用餐體驗</option><option value="ambience">環境</option><option value="service">服務態度</option><option value="portion">份量</option></select>
+</div>
+<div class="split"><div class="stack"><h3>最好的 5 筆</h3>
+<ol class="app-rank" id="best-list"></ol></div><div class="stack"><h3>最需要檢討的 5 筆</h3>
+<ol class="app-rank" id="worst-list"></ol></div></div>
+<p class="status" id="rank-status" role="status"></p></div></section>
+<section class="card accent-green is-roomy is-wide" aria-labelledby="pair-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">04</span>
+  <div><h2 id="pair-title">兩項評比對照</h2><p>兩項評比都有填的點評，依分數分到 5×5 格</p></div>
+</div>
+<div class="stack"><p class="app-scenario"><strong>情境</strong>想找「好吃但不划算」的店：橫軸選口味、縱軸選價位，點右下角的格子看是哪幾家。</p>
+<div class="field-row"><div class="field">
+  <label for="pair-x">橫軸評比</label>
+  <select id="pair-x"><option value="taste" selected>口味</option><option value="price">價位</option><option value="experience">用餐體驗</option><option value="ambience">環境</option><option value="service">服務態度</option><option value="portion">份量</option></select>
+</div><div class="field">
+  <label for="pair-y">縱軸評比</label>
+  <select id="pair-y"><option value="taste">口味</option><option value="price" selected>價位</option><option value="experience">用餐體驗</option><option value="ambience">環境</option><option value="service">服務態度</option><option value="portion">份量</option></select>
+</div></div>
+<div class="app-pair-wrap" id="pair-grid"></div>
+<p class="status" id="pair-status" role="status"></p>
+<ol class="app-rank" id="pair-list" aria-live="polite"></ol></div></section>
+<section class="card accent-blue is-roomy is-wide" aria-labelledby="trend-title"><div class="card-heading">
+  <span class="index-badge" aria-hidden="true">05</span>
+  <div><h2 id="trend-title">用餐趨勢</h2><p>依範圍長短自動分成每日、每週、每月或每年</p></div>
+</div>
+<div class="stack"><p class="app-scenario"><strong>情境</strong>懷疑最近外食變多、花費變高，切換次數、花費與心數看走勢就知道。</p>
+<fieldset class="segmented">
+  <legend class="visually-hidden">趨勢指標</legend>
+  <label><input type="radio" name="trend-metric" value="count" checked><span>用餐次數</span></label>
+  <label><input type="radio" name="trend-metric" value="spend"><span>花費</span></label>
+  <label><input type="radio" name="trend-metric" value="avg"><span>平均心數</span></label>
+</fieldset>
+<ol class="app-trend" id="trend-chart" aria-label="趨勢圖"></ol>
+<p class="status" id="trend-status" role="status"></p></div></section></div></div>
+</main>
+<footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
+</div>
+<img class="jerry-mark" src="jerry.png" width="1" height="1" alt="" aria-hidden="true">
+</body>
+</html>

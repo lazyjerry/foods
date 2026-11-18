@@ -34,6 +34,7 @@
 | 分享 | `/share?id=…`、`/share?tab=web` | 「分享圖」頁籤：勾選欄位做成浮水印，底圖可選點評照片、相簿、現場拍照或純文字，可下載或用系統分享；「分享網頁」頁籤：把整個分類或單一點評建成免登入的公開連結，可停止分享，或開分享卡片（網址加一張連結卡片圖） |
 | 公開分享頁 | `/s/<token>` | 免登入、唯讀；不顯示座標，照片以 base64 內嵌，不露出照片網址；右上角「分享」可複製網址、下載或系統分享連結卡片圖 |
 | 設定 | `/settings` | 稱呼、預設心數、新增時是否開啟評比、分享預設勾選欄位與浮水印位置、照片長邊與 JPEG 品質；通行金鑰管理、密碼登入開關、修改密碼；公開分享頁的 GA4 評估 ID |
+| 統計 | `/stats`、`/stats?from=…&to=…` | 依日期範圍（以用餐日期為準）統計：總覽（筆數、花費、平均心數、各項評比平均、常用分類）、綜合或單項評比最好與最壞的 5 筆（附「修改」直達編輯頁）、兩項評比的 5×5 對照格、每日／週／月／年的用餐次數、花費與平均心數趨勢；每張統計附一句使用情境 |
 
 - **地圖**：Leaflet + OpenStreetMap 圖磚。新增時預設定位到目前位置；點地圖或拖曳標記會自動查地址，輸入地址按「查座標」會移動標記。
 - **地址互轉**：Worker 代理 OpenStreetMap Nominatim，快取 1 天。只在按鈕或移動標記後才查詢（Nominatim 每秒 1 次的限制）。
@@ -143,7 +144,7 @@ public/
   *.html          由 scripts/build_pages.py 產生，不要手改
   app.css         專案版面（只用 .app-* 與 Jerry UI token）
   jerry-ui.*      Jerry UI 元件庫固定檔，不要修改
-  js/             各頁前端模組（common、list、edit、map、photo、photos、share、settings、login）
+  js/             各頁前端模組（common、list、edit、map、photo、photos、share、settings、stats、login）
   vendor/leaflet/ Leaflet 1.9.4（npm run vendor 產生）
   vendor/simplewebauthn/ SimpleWebAuthn 瀏覽器端 UMD（npm run vendor 產生）
   manifest.webmanifest、sw.js、js/pwa.js  PWA 設定、service worker 與註冊

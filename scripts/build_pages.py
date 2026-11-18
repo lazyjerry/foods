@@ -19,7 +19,7 @@ OUT = ROOT / "public"
 JERRY = Path(os.environ.get("JERRY_UI", Path.home() / ".ai-global/skills/build-jerry-cloudflare-page/scripts/jerry-ui.py"))
 
 NAV = [("/", "點評", "index"), ("/edit", "新增", "edit"), ("/photos", "照片集", "photos"),
-       ("/share", "分享", "share"), ("/settings", "設定", "settings")]
+       ("/share", "分享", "share"), ("/settings", "設定", "settings"), ("/stats", "統計", "stats")]
 
 SHARE_FIELDS = [("title", "標題"), ("price", "價格"), ("date", "用餐日期"), ("address", "地址"),
                 ("ratings", "評比"), ("body", "點評內容"), ("nickname", "稱呼")]
@@ -509,6 +509,85 @@ def account_block():
     )
 
 
+# 統計頁的評比選單；類別要和 js/common.js 的 RATING_DEFS、src/db.js 的 RATING_KEYS 一致
+RATING_OPTIONS = [("taste", "口味"), ("price", "價位"), ("experience", "用餐體驗"), ("ambience", "環境"),
+                  ("service", "服務態度"), ("portion", "份量")]
+
+
+def scenario(text):
+    # 統計卡的一句話情境：每張統計放在卡片標題下，一眼看出這張是拿來做什麼的（樣式見 app.css 的 .app-scenario）
+    return f'<p class="app-scenario"><strong>情境</strong>{text}</p>'
+
+
+def rating_select(fid, label, selected, overall=False):
+    opts = ([{"value": "overall", "text": "綜合（有填的評比平均）"}] if overall else []) + [{"value": k, "text": t} for k, t in RATING_OPTIONS]
+    for o in opts:
+        if o["value"] == selected:
+            o["selected"] = True
+    return sn("F2:select", id=fid, label=label, options=opts)
+
+
+def build_stats():
+    # 統計頁：資料由 GET /api/stats 依日期範圍取回，計算在 js/stats-calc.js，畫面在 js/stats.js
+    dates = sn("F2:row", fields=sn("F2", id="stats-from", label="開始日期", type="date", num="num")
+               + sn("F2", id="stats-to", label="結束日期", type="date", num="num"))
+    range_form = sn("F1", id="range-form", content=stack(
+        sn("A5", legend="快速範圍", name="range", options=[
+            {"value": "30", "text": "近 30 天"}, {"value": "90", "text": "近 3 個月"},
+            {"value": "365", "text": "近一年"}, {"value": "all", "text": "全部", "checked": True}]),
+        dates,
+        sn("A1", variant="is-block", type="submit", id="range-btn", text="套用日期", arrow=True),
+        sn("F10", id="stats-status", role="status"),
+    ))
+    range_block = stack(scenario("想回顧某段期間吃了什麼，選快速範圍或自訂日期，下面每張統計都跟著換。"), range_form)
+
+    overview = stack(
+        scenario("月底想知道這段期間外食幾次、花了多少、整體滿不滿意，看這一張。"),
+        sn("X5", items=[{"label": "點評", "value": "—", "state": "is-total"}, {"label": "總花費", "value": "—"},
+                        {"label": "平均每餐", "value": "—"}, {"label": "平均心數", "value": "—"},
+                        {"label": "有評比", "value": "—"}, {"label": "最貴一餐", "value": "—"}, {"label": "最便宜一餐", "value": "—"}]).replace('<dl class="stats"', '<dl class="stats" id="kpi"', 1),
+        sn("F9", left=stack("<h3>各項評比平均</h3>", '<div class="app-meters" id="cat-avg"></div>'),
+           right=stack("<h3>常用分類</h3>", '<div class="app-top-tags" id="top-tags"></div>')),
+    )
+
+    def rank_col(title, lid):
+        return stack(f"<h3>{title}</h3>", f'<ol class="app-rank" id="{lid}"></ol>')
+    ranking = stack(
+        scenario("覺得哪家分數給得太高或太低，從這裡按「修改」直接進編輯頁調整。"),
+        rating_select("rank-basis", "排名依據", "overall", overall=True),
+        sn("F9", left=rank_col("最好的 5 筆", "best-list"), right=rank_col("最需要檢討的 5 筆", "worst-list")),
+        sn("F10", id="rank-status", role="status"),
+    )
+
+    pair = stack(
+        scenario("想找「好吃但不划算」的店：橫軸選口味、縱軸選價位，點右下角的格子看是哪幾家。"),
+        sn("F2:row", fields=rating_select("pair-x", "橫軸評比", "taste") + rating_select("pair-y", "縱軸評比", "price")),
+        '<div class="app-pair-wrap" id="pair-grid"></div>',
+        sn("F10", id="pair-status", role="status"),
+        '<ol class="app-rank" id="pair-list" aria-live="polite"></ol>',
+    )
+
+    trend = stack(
+        scenario("懷疑最近外食變多、花費變高，切換次數、花費與心數看走勢就知道。"),
+        sn("A5", legend="趨勢指標", name="trend-metric", options=[
+            {"value": "count", "text": "用餐次數", "checked": True}, {"value": "spend", "text": "花費"}, {"value": "avg", "text": "平均心數"}]),
+        '<ol class="app-trend" id="trend-chart" aria-label="趨勢圖"></ol>',
+        sn("F10", id="trend-status", role="status"),
+    )
+
+    cards = "\n".join([
+        card("01", "range-title", "日期範圍", "以用餐日期為準，沒填用餐日期的用建立日期", range_block, variant="is-roomy is-wide"),
+        card("02", "overview-title", "總覽", "範圍內的筆數、花費、平均心數與常用分類", overview, accent="accent-blue", variant="is-roomy is-wide"),
+        card("03", "rank-title", "最好與最壞的 5 筆", "依綜合或單項評比排序，點「修改」直接改", ranking, accent="accent-violet", variant="is-roomy is-wide"),
+        card("04", "pair-title", "兩項評比對照", "兩項評比都有填的點評，依分數分到 5×5 格", pair, accent="accent-green", variant="is-roomy is-wide"),
+        card("05", "trend-title", "用餐趨勢", "依範圍長短自動分成每日、每週、每月或每年", trend, accent="accent-blue", variant="is-roomy is-wide"),
+    ])
+    page("stats.html", "統計｜評比排名、兩項評比對照與用餐趨勢", "依日期範圍統計點評、評比排名與用餐趨勢",
+         {"eyebrow": "REVIEW STATS", "solid": "點評統計", "outline": "回顧與修正",
+          "lede": "選一段日期，看吃了幾餐、哪家該改分數。"},
+         sn("L4", cards=cards), ["module:js/stats.js"], "stats")
+
+
 def build_login():
     username = attr(sn("F2", id="username", label="帳號", placeholder="輸入帳號"), 'id="username"', 'autocomplete="username" maxlength="64"')
     f3 = sn("F3", id="password", type="password", placeholder="輸入密碼", button="顯示", button_label="顯示密碼")
@@ -554,5 +633,6 @@ if __name__ == "__main__":
     build_share()
     build_shared()
     build_settings()
+    build_stats()
     build_login()
     build_offline()

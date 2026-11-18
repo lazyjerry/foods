@@ -340,9 +340,21 @@ with sync_playwright() as p:
     ok("恢復密碼登入並刪除金鑰", page.locator("#passkey-list .app-key").count() == 0 and page.is_checked("#password-login"))
     cdp.send("WebAuthn.removeVirtualAuthenticator", {"authenticatorId": auth_id})
 
+    # 統計頁：載入後各卡都有內容，「修改」連到編輯頁，日期顛倒時擋下
+    page.goto(BASE + "/stats")
+    page.wait_for_function("document.querySelector('#stats-status').textContent.includes('筆點評')")
+    ok("統計頁前五名有「修改」連結", page.locator('#best-list a.btn[href^="/edit?id="]').count() >= 1)
+    ok("統計頁每張統計都有情境句", page.locator(".card .app-scenario").count() == 5)
+    page.check('input[name="trend-metric"][value="spend"]', force=True)
+    ok("統計頁切換花費趨勢", "NT$" in page.text_content("#trend-status"), page.text_content("#trend-status"))
+    page.fill("#stats-from", "2026-12-01")
+    page.fill("#stats-to", "2026-11-01")
+    page.click("#range-btn")
+    ok("統計頁擋下開始晚於結束", "不能晚於" in page.text_content("#stats-status"))
+
     # 手機寬度：有資料時不可水平捲動
     page.set_viewport_size({"width": 375, "height": 667})
-    for path in ["/", f"/edit?id={rid}", "/photos", f"/share?id={rid}", "/settings"]:
+    for path in ["/", f"/edit?id={rid}", "/photos", f"/share?id={rid}", "/settings", "/stats"]:
         page.goto(BASE + path)
         page.wait_for_load_state("networkidle")
         over = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")

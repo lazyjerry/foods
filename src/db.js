@@ -289,6 +289,44 @@ export async function listTags(db) {
     .all();
   return results.map((r) => ({ tag: r.tag, count: r.count }));
 }
+// 統計頁（/stats）：日期範圍內的精簡點評列，總覽、前五名、評比對照與趨勢都在瀏覽器算（public/js/stats-calc.js）。
+// 日期以用餐日期為準，沒填時用建立日期（UTC）；from／to 都可省略，省略代表不限。
+// 超過上限時保留最近的 STATS_MAX_ROWS 筆並回 truncated，由頁面提示縮小範圍。
+export const STATS_MAX_ROWS = 5000;
+const STATS_DATE = "COALESCE(visited_on, substr(created_at, 1, 10))";
+
+export function parseStatsRange(params) {
+  const range = {};
+  for (const key of ["from", "to"]) {
+    const v = params.get(key);
+    if (!v) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v + "T00:00:00Z"))) throw new HttpError(400, "日期格式要是 YYYY-MM-DD");
+    range[key] = v;
+  }
+  if (range.from && range.to && range.from > range.to) throw new HttpError(400, "開始日期不能晚於結束日期，請對調後再查");
+  return range;
+}
+
+export async function listStatsRows(db, { from, to }) {
+  const conds = [];
+  const binds = [];
+  if (from) {
+    conds.push(`${STATS_DATE} >= ?`);
+    binds.push(from);
+  }
+  if (to) {
+    conds.push(`${STATS_DATE} <= ?`);
+    binds.push(to);
+  }
+  const sql = `SELECT id, title, price, ratings, tags, ${STATS_DATE} AS date FROM reviews
+    ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY date DESC, id DESC LIMIT ?`;
+  const { results } = await db.prepare(sql).bind(...binds, STATS_MAX_ROWS + 1).all();
+  const items = results.slice(0, STATS_MAX_ROWS).map((r) => ({
+    id: r.id, title: r.title, price: r.price, date: r.date, ratings: JSON.parse(r.ratings || "{}"), tags: parseTags(r.tags),
+  }));
+  return { from: from || null, to: to || null, items, truncated: results.length > STATS_MAX_ROWS };
+}
+
 
 export function sanitizeSettings(input) {
   const s = structuredClone(DEFAULT_SETTINGS);

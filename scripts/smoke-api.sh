@@ -44,6 +44,15 @@ id=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review
 ratings=$(body "$r" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["review"]["ratings"], sort_keys=True))')
 [ "$ratings" = '{"price": 4, "taste": 5}' ] && echo "通過：評比白名單過濾" || { echo "失敗：評比白名單 $ratings"; fail=1; }
 
+# 統計頁：日期範圍以用餐日期為準，格式錯誤或開始晚於結束回 400
+r=$(req GET "/api/stats?from=2026-11-18&to=2026-11-18"); check "統計日期範圍" 200 "$(code "$r")"
+s=$(body "$r" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(sum(i["id"]=='"$id"' and i["date"]=="2026-11-18" for i in d["items"]), d["truncated"])')
+[ "$s" = "1 False" ] && echo "通過：統計範圍包含測試點評" || { echo "失敗：統計範圍（$s）"; fail=1; }
+r=$(req GET "/api/stats?to=2026-11-17"); s=$(body "$r" | python3 -c 'import json,sys; print(sum(i["id"]=='"$id"' for i in json.load(sys.stdin)["items"]))')
+[ "$s" = "0" ] && echo "通過：統計範圍排除範圍外的點評" || { echo "失敗：統計範圍外仍列出（$s）"; fail=1; }
+r=$(req GET "/api/stats?from=2026-13-01"); check "統計日期格式錯誤" 400 "$(code "$r")"
+r=$(req GET "/api/stats?from=2026-11-19&to=2026-11-18"); check "統計開始晚於結束" 400 "$(code "$r")"
+
 python3 - "$TMP/t.jpg" <<'PY'
 import sys
 # 最小合法 JPEG 檔頭即可通過伺服器檢查（FF D8 FF）

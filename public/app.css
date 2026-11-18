@@ -256,3 +256,38 @@ main:has(.app-fab) { padding-bottom: 112px; }
 @media (max-width: 760px) {
   .app-share-scroll { max-height: 60vh; contain: none; }
 }
+
+/* 統計頁（/stats）：情境句、排名清單、兩項評比對照格、趨勢長條。長條與格子的大小由 stats.js 設 --value */
+.app-scenario { margin: 0; padding: var(--space-2) var(--space-3); background: var(--paper); border-left: var(--accent-bar) solid var(--accent); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
+.app-scenario strong { margin-right: var(--space-2); padding: 0 var(--space-1); color: var(--card); background: var(--ink); font-size: var(--fs-xs); }
+.app-meters { display: grid; gap: var(--space-3); }
+.app-rank { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.app-rank:empty { display: none; }
+.app-rank-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); background: var(--card); border: var(--line); }
+.app-rank-no { min-width: 2em; font-family: var(--mono); font-weight: var(--fw-black); text-align: center; white-space: nowrap; }
+.app-rank-body { min-width: 0; }
+.app-rank-title { font-weight: var(--fw-heavy); overflow-wrap: anywhere; }
+.app-rank-meta { margin: 0; overflow-wrap: anywhere; }
+.app-rank-score { font-family: var(--mono); white-space: nowrap; }
+.app-pair-wrap { position: relative; display: grid; justify-items: start; gap: var(--space-2); max-width: 100%; overflow-x: auto; }
+.app-pair-wrap:empty { display: none; }
+.app-pair-axis { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+.app-pair { border-collapse: separate; border-spacing: var(--space-1); }
+.app-pair-tick { color: var(--ink-2); font-family: var(--mono); font-size: var(--fs-sm); font-weight: var(--fw-bold); text-align: center; }
+.app-pair-cell { position: relative; isolation: isolate; display: grid; place-items: center; width: min(52px, 11vw); aspect-ratio: 1; padding: 0; color: var(--ink); background: var(--white); border: var(--line); font-family: var(--mono); font-size: var(--fs-lg); font-weight: var(--fw-black); cursor: pointer; }
+.app-pair-cell::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--blue); opacity: calc(var(--value, 0) * 0.55); }
+.app-pair-cell.app-pair-eq { border-style: dashed; }
+.app-pair-cell:disabled { cursor: default; }
+.app-pair-cell[aria-pressed="true"] { outline: var(--focus); outline-offset: 2px; box-shadow: var(--shadow-sm); }
+.app-trend { display: flex; gap: var(--space-1); height: 220px; margin: 0; padding: 0; overflow-x: auto; list-style: none; }
+.app-trend:empty { display: none; }
+.app-trend-col { position: relative; display: flex; flex: 1 0 18px; flex-direction: column; min-width: 18px; cursor: default; }
+.app-trend-col:focus-visible { outline: var(--focus); outline-offset: 2px; }
+.app-trend-val { min-height: 1.6em; font-family: var(--mono); font-size: var(--fs-2xs); font-weight: var(--fw-bold); text-align: center; white-space: nowrap; visibility: hidden; }
+.app-trend-col.is-labeled .app-trend-val, .app-trend-col:hover .app-trend-val, .app-trend-col:focus-visible .app-trend-val { visibility: visible; }
+.app-trend-bar { position: relative; flex: 1 1 auto; border-bottom: var(--line); }
+.app-trend-fill { position: absolute; right: 15%; bottom: 0; left: 15%; height: var(--value, 0%); background: var(--blue); }
+.app-trend-col:hover .app-trend-fill, .app-trend-col:focus-visible .app-trend-fill { background: var(--ink); }
+.app-trend-label { min-height: 2.4em; padding-top: var(--space-1); color: var(--ink-2); font-size: var(--fs-2xs); line-height: var(--lh-tight); text-align: center; white-space: nowrap; }
+/* 常用分類放在 F9 右欄：欄高跟著左欄的量表拉長，徽章列要靠上、不跟著撐高 */
+.app-top-tags { align-self: start; }
