@@ -43,6 +43,11 @@
   <a class="chip" href="/share">分享</a>
   <a class="chip" href="/settings" aria-current="page">設定</a>
 </nav>
+<div class="app-autosave">
+<p class="hint">變更後自動存到 D1，各裝置共用</p>
+<p class="status" id="settings-status" role="status"></p>
+<button class="btn is-link" type="button" id="reset-btn">恢復預設</button>
+</div>
 <div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="people-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">01</span>
   <div><h2 id="people-title">稱呼與評比</h2><p>新增點評時套用的預設值</p></div>
@@ -82,14 +87,8 @@
   <input id="quality" type="range" min="60" max="95" step="5" value="80">
   <div class="scale"><span>60</span><span>95</span></div>
 </div></div></section>
-<section class="card accent-violet is-roomy" aria-labelledby="save-title"><div class="card-heading">
+<section class="card accent-violet is-roomy" aria-labelledby="passkey-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">04</span>
-  <div><h2 id="save-title">自動儲存</h2><p>變更後自動存到 D1，各裝置共用</p></div>
-</div>
-<div class="stack"><p class="status" id="settings-status" role="status"></p>
-<button class="btn is-link" type="button" id="reset-btn">恢復預設</button></div></section>
-<section class="card accent-coral is-roomy is-wide" aria-labelledby="passkey-title"><div class="card-heading">
-  <span class="index-badge" aria-hidden="true">05</span>
   <div><h2 id="passkey-title">通行金鑰</h2><p>用指紋、臉部或裝置密碼登入；變更立即生效，不用按儲存</p></div>
 </div>
 <div class="stack"><div class="field">
@@ -105,7 +104,7 @@
 <div class="switches"><label class="switch"><span><strong>允許密碼登入</strong><small>至少有一把通行金鑰才能關閉；關閉後登入頁只剩通行金鑰</small></span><input type="checkbox" id="password-login"><i aria-hidden="true"></i></label></div>
 <p class="status" id="password-login-status" role="status"></p></div></section>
 <section class="card accent-blue is-roomy" aria-labelledby="account-title"><div class="card-heading">
-  <span class="index-badge" aria-hidden="true">06</span>
+  <span class="index-badge" aria-hidden="true">05</span>
   <div><h2 id="account-title">帳號與密碼</h2><p>密碼以雜湊存在 D1；修改後其他裝置要重新登入</p></div>
 </div>
 <div class="stack"><div class="field">
@@ -128,7 +127,7 @@
 <button class="btn is-block" type="button" id="change-pw-btn">修改密碼<span class="btn-arrow" aria-hidden="true">→</span></button>
 <p class="status" id="account-status" role="status"></p></div></section>
 <section class="card accent-green is-roomy" aria-labelledby="usage-title"><div class="card-heading">
-  <span class="index-badge" aria-hidden="true">07</span>
+  <span class="index-badge" aria-hidden="true">06</span>
   <div><h2 id="usage-title">用量</h2><p>已用空間與今日（UTC）讀寫次數，每小時更新</p></div>
 </div>
 <div class="stack"><dl class="def-list app-usage" id="usage-stats">

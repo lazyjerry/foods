@@ -357,20 +357,23 @@ def build_settings():
                                                                {"value": "2048", "text": "2048 px"}], hint="超過才縮小，不放大"),
         sn("F5", id="quality", label="JPEG 品質（%）", min="60", max="95", step="5", value="80"),
     )
-    save = stack(
+    # 自動儲存狀態列：放在卡片格線上方，不另佔一張卡
+    save = "\n".join([
+        '<div class="app-autosave">',
+        '<p class="hint">變更後自動存到 D1，各裝置共用</p>',
         sn("F10", id="settings-status", role="status"),
         sn("A1", variant="is-link", id="reset-btn", text="恢復預設"),
-    )
+        "</div>",
+    ])
     cards = "\n".join([
         card("01", "people-title", "稱呼與評比", "新增點評時套用的預設值", people),
         card("02", "share-title", "分享預設", "分享頁一開始勾選的欄位", share, accent="accent-blue"),
         card("03", "photo-title", "照片壓縮", "上傳前的長邊尺寸與 JPEG 品質", photo, accent="accent-green"),
-        card("04", "save-title", "自動儲存", "變更後自動存到 D1，各裝置共用", save, accent="accent-violet"),
-        card("05", "passkey-title", "通行金鑰", "用指紋、臉部或裝置密碼登入；變更立即生效，不用按儲存", passkey_block(), variant="is-roomy is-wide"),
-        card("06", "account-title", "帳號與密碼", "密碼以雜湊存在 D1；修改後其他裝置要重新登入", account_block(), accent="accent-blue"),
-        card("07", "usage-title", "用量", "已用空間與今日（UTC）讀寫次數，每小時更新", usage_block(), accent="accent-green"),
+        card("04", "passkey-title", "通行金鑰", "用指紋、臉部或裝置密碼登入；變更立即生效，不用按儲存", passkey_block(), accent="accent-violet"),
+        card("05", "account-title", "帳號與密碼", "密碼以雜湊存在 D1；修改後其他裝置要重新登入", account_block(), accent="accent-blue"),
+        card("06", "usage-title", "用量", "已用空間與今日（UTC）讀寫次數，每小時更新", usage_block(), accent="accent-green"),
     ])
-    main = sn("L4", cards=cards)
+    main = save + "\n" + sn("L4", cards=cards)
     page("settings.html", "設定｜分享欄位、稱呼、預設心數與照片壓縮", "設定點評與分享的預設值",
          {"eyebrow": "SETTINGS", "solid": "預設值", "outline": "設定",
           "lede": "常用的評比與分享方式先設好，之後不用每次調。"},

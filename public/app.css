@@ -105,3 +105,8 @@
 
 /* 設定頁「用量」清單（X6，src/storage.js 快取值）：數值用等寬粗體，跟說明文字區分 */
 .app-usage dd { color: var(--ink); font-family: var(--mono); font-size: var(--fs-lg); font-weight: var(--fw-heavy); }
+
+/* 設定頁自動儲存狀態列（卡片格線上方） */
+.app-autosave { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.app-autosave .hint { margin: 0; }
+.app-autosave .status { flex: 1 1 12em; }
