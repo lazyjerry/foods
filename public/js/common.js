@@ -28,6 +28,8 @@ export const DEFAULT_SETTINGS = {
   sharePosition: "bottom",
   maxEdge: 1600,
   quality: 80,
+  gaMeasurementId: "",
+  watermark: true,
 };
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -137,4 +139,56 @@ export function autoLoadMore(button, onReach) {
     io.unobserve(button);
     io.observe(button);
   };
+}
+
+// 右上角 toast（樣式見 app.css 的 .app-toast）：同一時間只留一個，連續呼叫會換文字並重新計時。
+// 設 aria-hidden，因為呼叫端都另有 role=status 的狀態列負責朗讀，避免報讀兩次。
+let toastEl = null;
+let toastTimer = 0;
+export function toast(text, ms = 2500) {
+  if (!toastEl) {
+    toastEl = document.createElement("p");
+    toastEl.className = "app-toast";
+    toastEl.setAttribute("aria-hidden", "true");
+    document.body.append(toastEl);
+  }
+  toastEl.textContent = text;
+  clearTimeout(toastTimer);
+  requestAnimationFrame(() => toastEl.classList.add("is-shown"));
+  toastTimer = setTimeout(() => toastEl.classList.remove("is-shown"), ms);
+}
+
+// 照片燒進稱呼的半透明斜向浮水印：直接畫進圖片，另存或截圖都帶著浮水印。沒設稱呼時用品牌名。
+export function watermark(src, text) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const size = Math.max(16, Math.round(Math.min(canvas.width, canvas.height) / 14));
+      ctx.font = `800 ${size}px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = Math.max(1, size / 14);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.32)";
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+      const stepX = ctx.measureText(text).width + size * 3;
+      const stepY = size * 4;
+      const diag = Math.hypot(canvas.width, canvas.height);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(-Math.PI / 6);
+      for (let y = -diag / 2, row = 0; y < diag / 2; y += stepY, row++) {
+        for (let x = -diag / 2 + (row % 2) * (stepX / 2); x < diag / 2; x += stepX) {
+          ctx.strokeText(text, x, y);
+          ctx.fillText(text, x, y);
+        }
+      }
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = () => reject(new Error("照片解碼失敗"));
+    img.src = src;
+  });
 }

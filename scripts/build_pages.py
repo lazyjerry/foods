@@ -52,7 +52,9 @@ def header(current):
     if current == "login":
         end = sn("L2:pill", text="PRIVATE · PASSKEY")
     elif current == "public":
-        end = sn("L2:pill", text="SHARED · READ ONLY")
+        # 分享鈕載入成功才由 js/shared.js 顯示（開 share_card_dialog()）
+        share_btn = sn("A1", variant="is-sm", id="share-open", text="分享").replace("<button ", "<button hidden ", 1)
+        end = sn("L2:pill", text="SHARED · READ ONLY") + share_btn
     elif current == "offline":
         end = sn("L2:pill", text="OFFLINE")
     else:
@@ -327,7 +329,35 @@ def share_web_panel():
     ])
     note = sn("C5", icon="!", title="分享網頁不需要登入就能看", warn="is-warn",
               text="連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。")
-    return stack(sn("L4", cards=cards), note)
+    return stack(sn("L4", cards=cards), note, share_card_dialog())
+
+
+def share_card_dialog():
+    # 分享卡片對話框：公開分享頁與「已分享的連結」共用，開關、卡片繪製與按鈕由 js/share-card.js 處理
+    url = attr(sn("F2", id="share-card-url", label="網址（不用登入就能看）"), "<input", "readonly")
+    hide = lambda html: html.replace("<button ", "<button hidden ", 1).replace("<a ", "<a hidden ", 1)
+    save = sn("A1:link", href="#", text="儲存圖片").replace("<a ", '<a id="share-card-save" download ', 1)
+    content = stack(
+        url,
+        sn("A2", buttons=sn("A1", id="share-card-copy", text="複製網址")
+           + hide(sn("A1", variant="secondary", id="share-card-link", text="用其他 App 分享網址"))),
+        '<div class="app-card-preview" id="share-card-preview" aria-live="polite"></div>',
+        sn("A2", buttons=hide(save) + hide(sn("A1", variant="secondary", id="share-card-image", text="分享圖片"))),
+        sn("F10", id="share-card-status", role="status"),
+    )
+    return sn("D1", id="share-card", title="分享連結", content=content, close="關閉")
+
+
+def photo_box():
+    # 公開分享頁的大圖檢視：D1 對話框限寬 560px 放不下大圖，另做 app-lightbox；開關與切換由 js/shared.js 的 bindPhotoBox() 處理
+    return """<dialog class="app-lightbox" id="photo-box" aria-label="照片大圖">
+  <div class="app-lightbox-body">
+    <div class="app-lightbox-head"><span class="app-slider-count" id="photo-box-count"></span><button class="sheet-x" type="button" id="photo-box-close" aria-label="關閉">×</button></div>
+    <img class="app-lightbox-img" id="photo-box-img" alt="">
+    <p class="app-lightbox-caption" id="photo-box-caption"></p>
+    <div class="app-slider-bar" id="photo-box-bar"><button class="btn secondary" type="button" data-box="-1">‹ 上一張</button><button class="btn secondary" type="button" data-box="1">下一張 ›</button></div>
+  </div>
+</dialog>"""
 
 
 def build_shared():
@@ -335,6 +365,8 @@ def build_shared():
     content = "\n".join([
         sn("F10", id="shared-status", role="status"),
         '<div class="app-review-list" id="shared-list"></div>',
+        photo_box(),
+        share_card_dialog(),
     ])
     main = sn("L4", cards=card("01", "shared-title", "分享的點評", "載入中…", content, variant="is-roomy is-wide"))
     page("shared.html", "吃過筆記｜分享的點評", "朋友分享的食物點評",
@@ -356,28 +388,43 @@ def build_settings():
                                                                {"value": "1600", "text": "1600 px", "selected": True},
                                                                {"value": "2048", "text": "2048 px"}], hint="超過才縮小，不放大"),
         sn("F5", id="quality", label="JPEG 品質（%）", min="60", max="95", step="5", value="80"),
+        # 稱呼浮水印：分享圖、公開分享頁與分享卡片的照片都照這個開關，不改上傳的照片；預設開啟（settings.js 依 D1 設定勾選）
+        sn("F4:list", switches=sn("F4", id="watermark", label="分享的照片壓上稱呼浮水印", hint="分享圖照片角落、公開分享頁與分享卡片的照片壓上「稱呼」（公開頁沒設稱呼時用「吃過筆記」）；不改上傳的照片")),
     )
-    # 自動儲存狀態列：放在卡片格線上方，不另佔一張卡
+    # 儲存狀態列：放在卡片格線上方，不另佔一張卡；儲存按鈕是右下角的浮動圓鈕（.app-fab）
     save = "\n".join([
         '<div class="app-autosave">',
-        '<p class="hint">變更後自動存到 D1，各裝置共用</p>',
+        '<p class="hint">改完按右下角「儲存」才會存到 D1，各裝置共用</p>',
         sn("F10", id="settings-status", role="status"),
         sn("A1", variant="is-link", id="reset-btn", text="恢復預設"),
         "</div>",
     ])
     cards = "\n".join([
         card("01", "people-title", "稱呼與評比", "新增點評時套用的預設值", people),
-        card("02", "share-title", "分享預設", "分享頁一開始勾選的欄位", share, accent="accent-blue"),
-        card("03", "photo-title", "照片壓縮", "上傳前的長邊尺寸與 JPEG 品質", photo, accent="accent-green"),
+        card("02", "photo-title", "照片壓縮", "上傳前的長邊尺寸、JPEG 品質與分享圖浮水印", photo, accent="accent-blue"),
+        card("03", "share-title", "分享預設", "分享頁一開始勾選的欄位", share, accent="accent-green"),
         card("04", "passkey-title", "通行金鑰", "用指紋、臉部或裝置密碼登入；變更立即生效，不用按儲存", passkey_block(), accent="accent-violet"),
         card("05", "account-title", "帳號與密碼", "密碼以雜湊存在 D1；修改後其他裝置要重新登入", account_block(), accent="accent-blue"),
         card("06", "usage-title", "用量", "已用空間與今日（UTC）讀寫次數，每小時更新", usage_block(), accent="accent-green"),
+        card("07", "ga-title", "流量統計", "公開分享頁的 Google Analytics 4；改完按儲存", ga_block(), accent="accent-violet"),
     ])
     main = save + "\n" + sn("L4", cards=cards)
+    # 浮動儲存鈕：固定在右下角，捲到哪都按得到；沒有未存變更時 disabled（settings.js 控制）
+    main += '\n<button class="app-fab" type="button" id="save-btn" aria-label="儲存設定" disabled>儲存</button>'
     page("settings.html", "設定｜分享欄位、稱呼、預設心數與照片壓縮", "設定點評與分享的預設值",
          {"eyebrow": "SETTINGS", "solid": "預設值", "outline": "設定",
           "lede": "常用的評比與分享方式先設好，之後不用每次調。"},
          main, ["vendor/simplewebauthn/browser.umd.min.js", "module:js/settings.js"], "settings", form="settings-form")
+
+
+def ga_block():
+    # GA4（ADR 028）：只有公開分享頁載入 gtag；留空就完全不載入。和 01–03 一樣按儲存才寫入，由 settings.js 驗格式
+    field = attr(sn("F2", id="ga-id", label="GA4 評估 ID", placeholder="G-XXXXXXXXXX",
+                    hint="GA4 管理 → 資料串流 → 網頁串流裡的「評估 ID」；留空就不追蹤"),
+                 'id="ga-id"', 'maxlength="22" autocomplete="off" autocapitalize="characters" spellcheck="false"')
+    note = sn("C5", icon="i", title="只追蹤公開分享頁",
+              text="登入後的頁面不載入 GA。GA 報表的網址會含分享連結的代碼，能看報表的人都能開那些分享頁。")
+    return stack(field, note)
 
 
 def usage_block():

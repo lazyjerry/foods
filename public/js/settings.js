@@ -1,5 +1,5 @@
 // 設定頁：讀寫 /api/settings（存在 D1，各裝置共用）。
-import { $, DEFAULT_SETTINGS, SHARE_FIELDS, api, bindLogout, esc, formatBytes, mergeSettings, setStatus } from "./common.js";
+import { $, DEFAULT_SETTINGS, SHARE_FIELDS, api, bindLogout, esc, formatBytes, mergeSettings, setStatus, toast } from "./common.js";
 
 const form = $("#settings-form");
 const status = $("#settings-status");
@@ -16,6 +16,8 @@ function fill(s) {
   q.value = String(s.quality);
   const out = q.closest(".range")?.querySelector("output");
   if (out) out.value = q.value;
+  $("#ga-id").value = s.gaMeasurementId;
+  $("#watermark").checked = s.watermark;
 }
 
 function read() {
@@ -27,49 +29,47 @@ function read() {
     sharePosition: form.querySelector('input[name="def-position"]:checked')?.value || "bottom",
     maxEdge: Number($("#max-edge").value),
     quality: Number($("#quality").value),
+    gaMeasurementId: $("#ga-id").value.trim().toUpperCase(),
+    watermark: $("#watermark").checked,
   };
 }
 
-// 自動儲存：01–03 卡片的欄位一變動就排程寫入 D1，沒有儲存按鈕。降低寫入頻率的做法：
-// - 防抖：選項類 change 等 AUTOSAVE_MS、稱呼打字等 TYPING_MS，期間的連續變動合併成一次
-// - 滑桿只聽 change（放開才算），不聽拖曳中的 input；注音選字中（isComposing）不排程
-// - 送出當下才讀表單，內容跟上次存成功的一樣就不送（切過去又切回來 = 0 次寫入）
-// - 同時只送一個請求，送出期間的新變動等它回來再排一次
-// - 切走分頁或離開頁面時，未存的變動用 keepalive 立刻送出
-const AUTOSAVE_MS = 600;
-const TYPING_MS = 1200;
+// 手動儲存：01–03 與「流量統計」卡片改完後，按右下角浮動鈕（#save-btn）才寫入 D1，不自動儲存。
+// - 只在有未存變更時可按：送出前讀表單、跟上次存成功的內容比對，切過去又切回來 = 不可按
+// - 同時只送一個請求；送出期間又改的值，回來後仍留著「未儲存」狀態，再按一次
+// - 稱呼、GA4 欄按 Enter 等同按儲存；有未存變更時離開頁面，瀏覽器會先詢問
 const SAVED_TEXT = "已儲存設定，新增點評與分享頁會套用";
+const UNSAVED_TEXT = "有未儲存的變更，按右下角「儲存」";
 const nickname = $("#nickname");
 const resetBtn = $("#reset-btn");
-const scopes = ["#people-title", "#share-title", "#photo-title"].map((s) => $(s).closest("section"));
-let ready = false; // 載入成功前不自動儲存，避免用預設值覆寫 D1 裡的設定
+const saveBtn = $("#save-btn");
+const scopes = ["#people-title", "#share-title", "#photo-title", "#ga-title"].map((s) => $(s).closest("section"));
+let ready = false; // 載入成功前不能儲存，避免用預設值覆寫 D1 裡的設定
 let lastSaved = "";
 let inFlight = "";
-let timer = 0;
 
 const snapshot = () => JSON.stringify(read());
 const isDirty = () => snapshot() !== lastSaved;
 
-function schedule(ms) {
-  clearTimeout(timer);
-  if (!ready) return;
-  if (!isDirty()) {
-    if (!inFlight) setStatus(status, "");
-    return;
-  }
-  setStatus(status, "有變更，稍後自動儲存…");
-  timer = setTimeout(flush, ms);
+// 依目前表單更新儲存鈕與狀態列；欄位一變動就呼叫，只比對字串、不送請求
+function refresh() {
+  const dirty = ready && isDirty();
+  saveBtn.disabled = !dirty || Boolean(inFlight);
+  if (inFlight) return;
+  if (dirty) setStatus(status, UNSAVED_TEXT);
+  else if (status.textContent === UNSAVED_TEXT) setStatus(status, "");
 }
 
-async function flush({ keepalive = false } = {}) {
-  clearTimeout(timer);
-  if (!ready || !isDirty()) return;
+async function save() {
+  if (!ready || inFlight || !isDirty()) return;
+  if (gaInvalid()) return setStatus(status, GA_INVALID_TEXT, "error");
   const body = snapshot();
-  if (inFlight && (!keepalive || body === inFlight)) return; // 回來後會再檢查一次
   inFlight = body;
+  saveBtn.disabled = true;
+  saveBtn.setAttribute("aria-busy", "true");
   setStatus(status, "儲存中…");
   try {
-    const data = await api("/api/settings", { method: "PUT", json: JSON.parse(body), keepalive });
+    const data = await api("/api/settings", { method: "PUT", json: JSON.parse(body) });
     lastSaved = body;
     if (!isDirty()) {
       const typing = document.activeElement === nickname ? nickname.value : null;
@@ -78,39 +78,53 @@ async function flush({ keepalive = false } = {}) {
       lastSaved = snapshot();
     }
   } catch (err) {
-    setStatus(status, `${err.message}（下次變更時會再試）`, "error");
+    setStatus(status, `${err.message}（請再按一次儲存）`, "error");
     return;
   } finally {
-    if (inFlight === body) inFlight = "";
+    inFlight = "";
+    saveBtn.removeAttribute("aria-busy");
+    saveBtn.disabled = !isDirty();
   }
-  if (isDirty()) schedule(AUTOSAVE_MS);
-  else setStatus(status, SAVED_TEXT, "ok");
+  if (isDirty()) setStatus(status, UNSAVED_TEXT);
+  else {
+    setStatus(status, SAVED_TEXT, "ok");
+    toast("已儲存設定");
+  }
 }
 
 for (const sec of scopes) {
-  sec.addEventListener("change", () => schedule(AUTOSAVE_MS));
-  sec.addEventListener("input", (e) => {
-    if (e.target === nickname && !e.isComposing) schedule(TYPING_MS);
-  });
+  sec.addEventListener("change", refresh);
+  sec.addEventListener("input", refresh);
 }
+saveBtn.addEventListener("click", save);
 nickname.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
   e.preventDefault();
-  flush();
+  save();
 });
-// 表單裡已沒有送出按鈕；通行金鑰與密碼欄各自攔 Enter，這裡只擋掉預設送出
+// GA4 評估 ID（ADR 028）：格式不對就不送，留在欄位裡讓使用者改；伺服器端也會擋
+const gaInput = $("#ga-id");
+const GA_INVALID_TEXT = "GA4 評估 ID 要是 G- 開頭的英數字，例如 G-AB12CD34EF；改好或清空後再按儲存";
+const gaInvalid = () => gaInput.value.trim() !== "" && !/^G-[A-Z0-9]{4,20}$/i.test(gaInput.value.trim());
+gaInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.isComposing) return;
+  e.preventDefault();
+  save();
+});
+// 表單裡沒有 submit 按鈕；通行金鑰與密碼欄各自攔 Enter，這裡只擋掉預設送出
 form.addEventListener("submit", (e) => e.preventDefault());
 
-const saveOnLeave = () => {
-  if (document.visibilityState === "hidden") flush({ keepalive: true });
-};
-document.addEventListener("visibilitychange", saveOnLeave);
-addEventListener("pagehide", () => flush({ keepalive: true }));
+// 有未存變更時離開頁面，交給瀏覽器跳「確定要離開？」
+addEventListener("beforeunload", (e) => {
+  if (!ready || !isDirty()) return;
+  e.preventDefault();
+  e.returnValue = ""; // 舊版 Safari 只認 returnValue
+});
 
 resetBtn.addEventListener("click", () => {
-  if (!confirm("恢復預設會立即覆寫目前的設定（含稱呼），確定嗎？")) return;
-  fill(structuredClone(DEFAULT_SETTINGS));
-  schedule(0);
+  fill({ ...structuredClone(DEFAULT_SETTINGS), gaMeasurementId: gaInput.value }); // GA4 評估 ID 是串接設定，不跟著恢復預設
+  refresh();
+  if (isDirty()) setStatus(status, "已填入預設值，按右下角「儲存」才會生效");
 });
 
 bindLogout();
@@ -124,6 +138,7 @@ try {
 } catch (err) {
   for (const sec of scopes) sec.inert = true;
   resetBtn.disabled = true;
+  saveBtn.disabled = true;
   setStatus(status, `${err.message}；重新整理後再改設定`, "error");
 }
 form.inert = false;

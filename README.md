@@ -10,6 +10,10 @@
 
 ![操作示範：登入、搜尋分類、編輯點評、做分享圖、照片集](docs/readme-media/demo.gif)
 
+分享操作：分享圖、建立分享網頁連結、開分享卡片複製網址，再從公開分享頁開分享卡片。
+
+![分享操作：分享圖、建立分享連結、分享卡片、公開分享頁的分享卡片](docs/readme-media/share.gif)
+
 | 點評列表 | 新增／編輯（地圖選位置） |
 |---|---|
 | ![點評列表](docs/readme-media/screenshots/list.png) | ![編輯頁](docs/readme-media/screenshots/edit.png) |
@@ -27,9 +31,9 @@
 | 點評列表 | `/` | 搜尋店名、地址、點評內容、分類，多個關鍵字以空白分隔；點分類標籤直接搜尋該分類 |
 | 新增／編輯 | `/edit`、`/edit?id=…` | 必填：標題、價格、點評（0–2000 字）、座標、地址；選填：用餐日期、分類（標籤，最多 10 個）、評比、照片 |
 | 照片集 | `/photos` | 瀏覽、搜尋（含分類）、下載壓縮後的照片 |
-| 分享 | `/share?id=…`、`/share?tab=web` | 「分享圖」頁籤：勾選欄位做成浮水印，底圖可選點評照片、相簿、現場拍照或純文字，可下載或用系統分享；「分享網頁」頁籤：把整個分類或單一點評建成免登入的公開連結，可停止分享 |
-| 公開分享頁 | `/s/<token>` | 免登入、唯讀；不顯示座標，照片以 base64 內嵌，不露出照片網址 |
-| 設定 | `/settings` | 稱呼、預設心數、新增時是否開啟評比、分享預設勾選欄位與浮水印位置、照片長邊與 JPEG 品質；通行金鑰管理、密碼登入開關、修改密碼 |
+| 分享 | `/share?id=…`、`/share?tab=web` | 「分享圖」頁籤：勾選欄位做成浮水印，底圖可選點評照片、相簿、現場拍照或純文字，可下載或用系統分享；「分享網頁」頁籤：把整個分類或單一點評建成免登入的公開連結，可停止分享，或開分享卡片（網址加一張連結卡片圖） |
+| 公開分享頁 | `/s/<token>` | 免登入、唯讀；不顯示座標，照片以 base64 內嵌，不露出照片網址；右上角「分享」可複製網址、下載或系統分享連結卡片圖 |
+| 設定 | `/settings` | 稱呼、預設心數、新增時是否開啟評比、分享預設勾選欄位與浮水印位置、照片長邊與 JPEG 品質；通行金鑰管理、密碼登入開關、修改密碼；公開分享頁的 GA4 評估 ID |
 
 - **地圖**：Leaflet + OpenStreetMap 圖磚。新增時預設定位到目前位置；點地圖或拖曳標記會自動查地址，輸入地址按「查座標」會移動標記。
 - **地址互轉**：Worker 代理 OpenStreetMap Nominatim，快取 1 天。只在按鈕或移動標記後才查詢（Nominatim 每秒 1 次的限制）。
@@ -74,10 +78,10 @@ bash scripts/smoke-api.sh <網址> <密碼> [帳號]  # 對正式環境跑，會
 重拍 README 的截圖與影片（需要 ffmpeg；地圖圖磚要連網）：
 
 ```sh
-bash scripts/readme-media.sh [--seed N]
+bash scripts/readme-media.sh [--seed N] [--share-only]
 ```
 
-腳本在暫存目錄起一份全新的本機 D1／R2，不動 `.wrangler/` 與正式環境；寫入 `scripts/readme-media-reviews.json` 的虛構點評，從 `public/img/illustrations/` 隨機發插畫，輸出到 `docs/readme-media/`。要重現同一組照片分配，帶上次印出的 `--seed`。
+腳本在暫存目錄起一份全新的本機 D1／R2，不動 `.wrangler/` 與正式環境；寫入 `scripts/readme-media-reviews.json` 的虛構點評，從 `public/img/illustrations/` 隨機發插畫，輸出到 `docs/readme-media/`。要重現同一組照片分配，帶上次印出的 `--seed`；只重錄分享操作影片（`share.gif`）加 `--share-only`。
 
 ## 部署
 
@@ -155,7 +159,7 @@ scripts/
 public/img/       點評沒有照片時的預設圖（no-photo-1～5.svg，依點評 id 分配）
   illustrations/  AI 產生的食物插畫：編輯頁「選擇插畫」與 README 錄製共用
 docs/readme-media/
-  screenshots/、demo.gif  README 用的截圖與操作動畫
+  screenshots/、demo.gif、share.gif  README 用的截圖與操作動畫
 ```
 
 頁面外觀來自 Jerry UI 元件庫：改頁面結構請改 `scripts/build_pages.py` 再執行 `npm run pages`。Leaflet 的樣式表由 `public/js/map.js` 動態載入，這是 Jerry UI「不載入其他樣式表」規則的已知例外。

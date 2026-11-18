@@ -13,7 +13,12 @@ export const DEFAULT_SETTINGS = {
   sharePosition: "bottom",
   maxEdge: 1600,
   quality: 80,
+  gaMeasurementId: "",
+  watermark: true,
 };
+
+// GA4 評估 ID（ADR 028）：只用在公開分享頁，格式不對一律存空字串，避免把任意字串帶進頁面的 script 網址
+export const GA_ID_RE = /^G-[A-Z0-9]{4,20}$/;
 
 const now = () => new Date().toISOString();
 const chars = (s) => [...s].length;
@@ -266,6 +271,11 @@ export function sanitizeSettings(input) {
   if ([1280, 1600, 2048].includes(Number(input.maxEdge))) s.maxEdge = Number(input.maxEdge);
   const q = Number(input.quality);
   if (Number.isInteger(q) && q >= 60 && q <= 95) s.quality = q;
+  if (typeof input.gaMeasurementId === "string") {
+    const ga = input.gaMeasurementId.trim().toUpperCase();
+    if (GA_ID_RE.test(ga)) s.gaMeasurementId = ga;
+  }
+  if (typeof input.watermark === "boolean") s.watermark = input.watermark;
   return s;
 }
 

@@ -90,6 +90,49 @@
 .app-shared-photos figcaption { padding: var(--space-2); color: var(--ink-2); font-size: var(--fs-sm); }
 .app-review.app-shared-review { grid-template-columns: minmax(0, 1fr); }
 .app-shared-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 公開分享頁桌機版：文字左、照片右，放大店名、評比與內文；手機版在下方 760px 斷點改回單欄小字 */
+.app-review.app-shared-review { gap: var(--space-5); padding: var(--space-5); }
+.app-review.app-shared-review:has(.app-shared-photos) { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+.app-shared-review .app-review-body { gap: var(--space-2); }
+.app-shared-review .app-review-body h3 { font-size: var(--fs-h1); line-height: var(--lh-tight); }
+.app-shared-meta { font-size: var(--fs-lg); }
+.app-shared-review .app-review-addr { font-size: var(--fs-md); }
+/* 評比逐項成 li，斷行只發生在項目之間，不會把「口味」和心拆到兩行；桌機排成兩欄 */
+.app-shared-hearts { display: grid; grid-template-columns: repeat(2, max-content); gap: var(--space-2) var(--space-5); margin: 0; padding: var(--space-3) 0; border-top: var(--line); border-bottom: var(--line); list-style: none; color: var(--coral-ink); font-size: var(--fs-md); font-weight: var(--fw-bold); }
+.app-shared-hearts li { margin: 0; white-space: nowrap; }
+.app-shared-review .app-shared-text { font-size: var(--fs-lg); }
+.app-shared-review .app-shared-photos { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-self: start; }
+
+@media (max-width: 760px) {
+  .app-review.app-shared-review, .app-review.app-shared-review:has(.app-shared-photos) { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); padding: var(--space-3); }
+  .app-shared-review .app-review-body { gap: var(--space-1); }
+  .app-shared-review .app-review-body h3 { font-size: var(--fs-lg); line-height: var(--lh-snug); }
+  .app-shared-meta { font-size: var(--fs-md); }
+  .app-shared-review .app-review-addr { font-size: var(--fs-sm); }
+  .app-shared-hearts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); padding: 0; border: 0; font-size: var(--fs-sm); }
+  .app-shared-review .app-shared-text { font-size: var(--fs-md); }
+  .app-shared-review .app-shared-photos { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+
+/* 公開分享頁照片：點了開大圖；兩張以上是左右滑動的輪播（shared.js 的 photoBlock()、bindSliders()） */
+.app-photo-open { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.app-shared-review .app-shared-photos.app-slider { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.app-slider-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.app-slider-track::-webkit-scrollbar { display: none; }
+.app-slider-track:focus-visible { outline: var(--focus); }
+.app-slider-track > figure { flex: 0 0 100%; scroll-snap-align: start; }
+.app-slider-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.app-slider-bar[hidden] { display: none; }
+.app-slider-count { color: var(--ink-2); font-family: var(--mono); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+
+/* 公開分享頁大圖（photo_box()）：圖片完整顯示不裁切，高度限在視窗內 */
+.app-lightbox { width: min(1100px, calc(100% - 32px)); max-width: none; max-height: calc(100% - 32px); padding: 0; color: var(--ink); background: var(--card); border: var(--line); box-shadow: var(--shadow); }
+.app-lightbox::backdrop { background: var(--backdrop); }
+.app-lightbox-body { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.app-lightbox-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.app-lightbox-img { display: block; width: 100%; height: auto; max-height: 72vh; object-fit: contain; background: var(--paper); border: var(--line); touch-action: pan-y; user-select: none; }
+.app-lightbox-caption { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); }
+.app-lightbox-caption:empty { display: none; }
 
 /* 鎖定畫面（ADR 026）：儲存、壓縮照片時蓋住整頁，由 edit.js 的 lockScreen() 建立；0.3 秒後才淡入，快速儲存不閃 */
 .app-busy { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: var(--space-4); background: var(--backdrop); opacity: 0; animation: app-busy-in 0.2s ease 0.3s forwards; }
@@ -110,3 +153,34 @@
 .app-autosave { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
 .app-autosave .hint { margin: 0; }
 .app-autosave .status { flex: 1 1 12em; }
+
+/* 設定頁卡片數為奇數時，最後一張滿版，不留半格空白；卡片增減或重排都不用改 HTML */
+#settings-form .card-grid > .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* 右上角 toast：由 common.js 的 toast() 建立，同一時間只有一個，約 2.5 秒後淡出；外觀比照 .result（墨線＋左側色條＋硬陰影） */
+.app-toast { position: fixed; top: var(--space-4); right: var(--space-4); z-index: 1100; max-width: min(360px, calc(100vw - 2 * var(--space-4))); margin: 0; padding: var(--space-3) var(--space-4); color: var(--ink); background: var(--card); border: var(--line); border-left: var(--accent-bar) solid var(--green); box-shadow: var(--shadow-sm); font-size: var(--fs-sm); font-weight: var(--fw-bold); line-height: 1.5; overflow-wrap: anywhere; pointer-events: none; opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease; }
+.app-toast.is-shown { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .app-toast { transform: none; transition-duration: 0s; }
+}
+
+/* 設定頁右下角浮動儲存鈕（build_pages.py 產生、settings.js 控制 disabled）：有未存變更時珊瑚色實心＋硬陰影，沒有時退成卡片底、不可按 */
+.app-fab { position: fixed; right: max(var(--space-5), env(safe-area-inset-right)); bottom: max(var(--space-5), env(safe-area-inset-bottom)); z-index: 900; display: grid; place-items: center; width: 80px; height: 80px; padding: 0; color: var(--ink); background: var(--coral); border: var(--line); border-radius: 50%; box-shadow: var(--shadow); font-family: inherit; font-size: var(--fs-lg); font-weight: var(--fw-black); line-height: 1; letter-spacing: 0.1em; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease; }
+.app-fab:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ink); }
+.app-fab:active:not(:disabled) { transform: translate(6px, 6px); box-shadow: none; }
+.app-fab:disabled { color: var(--ink-2); background: var(--card); box-shadow: var(--shadow-sm); cursor: default; }
+.app-fab[aria-busy="true"] { cursor: progress; }
+/* 留出浮動鈕的高度，最後一張卡的內容不會被蓋住 */
+main:has(.app-fab) { padding-bottom: 112px; }
+@media (max-width: 760px) {
+  .app-fab { width: 68px; height: 68px; font-size: var(--fs-md); }
+  main:has(.app-fab) { padding-bottom: 96px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-fab { transition: none; }
+}
+
+/* 分享卡片對話框（js/share-card.js）：預覽圖限高，長卡片在框內捲動，不把對話框撐出畫面 */
+.app-card-preview { display: grid; place-items: center; min-height: 160px; max-height: 52vh; overflow-y: auto; padding: var(--space-3); background: var(--paper); border: var(--line); }
+.app-card-preview img { display: block; width: 100%; height: auto; }
+.app-card-preview .meta { margin: 0; }

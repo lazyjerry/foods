@@ -2,6 +2,7 @@
 // 全部在瀏覽器的 canvas 完成；相簿與拍照的圖不上傳。
 import { $, RATING_DEFS, SHARE_FIELDS, api, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
 import { loadImage } from "./photo.js";
+import { openShareCard } from "./share-card.js";
 
 const params = new URLSearchParams(location.search);
 const select = $("#review-select");
@@ -144,6 +145,29 @@ function render() {
     }
     y += L.gap;
   }
+  drawWatermark(W, H);
+}
+
+// 稱呼浮水印（設定頁 02 照片壓縮卡的開關，預設開啟）：只壓在照片上、放在文字面板對面的右側角落；
+// 純文字分享圖沒有照片、稱呼留空時都不壓。dataset.watermark 記下壓了什麼，給 e2e 檢查。
+function drawWatermark(W, H) {
+  const text = base && settings.watermark ? settings.nickname.trim() : "";
+  canvas.dataset.watermark = text;
+  if (!text) return;
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(40 * u);
+  ctx.save();
+  ctx.font = `800 ${Math.max(16, Math.round(40 * u))}px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.textAlign = "right";
+  const atTop = position() === "bottom"; // 面板在下 → 右上角；面板在上 → 右下角
+  ctx.textBaseline = atTop ? "top" : "bottom";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+  ctx.shadowBlur = Math.round(8 * u);
+  ctx.shadowOffsetY = Math.round(2 * u);
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = token("--white") || "#fff";
+  ctx.fillText(text, W - pad, atTop ? pad : H - pad);
+  ctx.restore();
 }
 
 // ---------- 底圖 ----------
@@ -328,7 +352,7 @@ function renderShares() {
   shareList.innerHTML = shareItems
     .map((s) => `<li class="app-key">
   <div class="app-key-body"><strong>${esc(s.title || "（已刪除的點評）")}</strong><span class="app-key-meta">${s.kind === "tag" ? "整個分類" : "單一點評"} · ${esc(shareUrl(s.token))}</span></div>
-  <div class="actions"><button class="btn is-sm" type="button" data-copy="${s.token}">複製連結</button><a class="btn is-sm secondary" href="/s/${s.token}" target="_blank" rel="noopener">開啟</a><button class="btn is-sm secondary" type="button" data-revoke="${s.token}">停止分享</button></div>
+  <div class="actions"><button class="btn is-sm" type="button" data-copy="${s.token}">複製連結</button><button class="btn is-sm secondary" type="button" data-card="${s.token}">分享</button><a class="btn is-sm secondary" href="/s/${s.token}" target="_blank" rel="noopener">開啟</a><button class="btn is-sm secondary" type="button" data-revoke="${s.token}">停止分享</button></div>
 </li>`)
     .join("");
   if (!shareItems.length) setStatus(listStatus, "還沒有分享的連結");
@@ -396,7 +420,9 @@ $("#web-create-btn").addEventListener("click", async () => {
 shareList.addEventListener("click", async (e) => {
   const copy = e.target.closest("[data-copy]");
   const revoke = e.target.closest("[data-revoke]");
-  if (copy) {
+  const shareCard = e.target.closest("[data-card]");
+  if (shareCard) openShareCard(shareCard.dataset.card);
+  else if (copy) {
     const url = shareUrl(copy.dataset.copy);
     setStatus(listStatus, (await copyText(url)) ? `已複製：${url}` : `請手動複製：${url}`, "ok");
   } else if (revoke) {

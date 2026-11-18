@@ -18,7 +18,7 @@
 <div class="wrap is-wide">
 <header class="top">
   <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">食</span>吃過筆記</a>
-  <div class="top-end"><p class="pill">SHARED · READ ONLY</p></div>
+  <div class="top-end"><p class="pill">SHARED · READ ONLY</p><button hidden class="btn is-sm" type="button" id="share-open">分享</button></div>
 </header>
 <header class="masthead">
   <p class="eyebrow">SHARED FOOD NOTES</p>
@@ -33,7 +33,32 @@
   <div><h2 id="shared-title">分享的點評</h2><p>載入中…</p></div>
 </div>
 <p class="status" id="shared-status" role="status"></p>
-<div class="app-review-list" id="shared-list"></div></section></div></div>
+<div class="app-review-list" id="shared-list"></div>
+<dialog class="app-lightbox" id="photo-box" aria-label="照片大圖">
+  <div class="app-lightbox-body">
+    <div class="app-lightbox-head"><span class="app-slider-count" id="photo-box-count"></span><button class="sheet-x" type="button" id="photo-box-close" aria-label="關閉">×</button></div>
+    <img class="app-lightbox-img" id="photo-box-img" alt="">
+    <p class="app-lightbox-caption" id="photo-box-caption"></p>
+    <div class="app-slider-bar" id="photo-box-bar"><button class="btn secondary" type="button" data-box="-1">‹ 上一張</button><button class="btn secondary" type="button" data-box="1">下一張 ›</button></div>
+  </div>
+</dialog>
+<dialog class="sheet" id="share-card" aria-labelledby="share-card-title">
+  <div class="sheet-body" tabindex="-1" autofocus>
+    <div class="sheet-head">
+      <div><h2 id="share-card-title">分享連結</h2></div>
+      <button class="sheet-x" type="button" data-dialog-close aria-label="關閉">×</button>
+    </div>
+    <div class="stack"><div class="field">
+  <label for="share-card-url">網址（不用登入就能看）</label>
+  <input readonly id="share-card-url" type="text">
+</div>
+<div class="actions"><button class="btn" type="button" id="share-card-copy">複製網址</button><button hidden class="btn secondary" type="button" id="share-card-link">用其他 App 分享網址</button></div>
+<div class="app-card-preview" id="share-card-preview" aria-live="polite"></div>
+<div class="actions"><a hidden id="share-card-save" download class="btn" href="#">儲存圖片</a><button hidden class="btn secondary" type="button" id="share-card-image">分享圖片</button></div>
+<p class="status" id="share-card-status" role="status"></p></div>
+    <p class="sheet-foot"><button class="btn" type="button" data-dialog-close>關閉</button></p>
+  </div>
+</dialog></section></div></div>
 </main>
 <footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
 </div>

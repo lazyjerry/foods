@@ -127,7 +127,7 @@ export async function publicShare(env, token) {
       photos: share.kind === "tag" ? photos.slice(0, 1) : photos, // 分類頁只帶封面（ADR 021）
     };
   });
-  return json({ share: { kind: share.kind, tag: share.tag }, nickname: settings.nickname, reviews }, 200, { "X-Robots-Tag": "noindex" });
+  return json({ share: { kind: share.kind, tag: share.tag }, nickname: settings.nickname, watermark: settings.watermark, gaMeasurementId: settings.gaMeasurementId, reviews }, 200, { "X-Robots-Tag": "noindex" });
 }
 
 export async function publicPhoto(env, token, photoId) {

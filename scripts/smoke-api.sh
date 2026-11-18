@@ -69,6 +69,20 @@ r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"nickname":"�
 check "儲存設定" 200 "$(code "$r")"
 s=$(body "$r" | python3 -c 'import json,sys; s=json.load(sys.stdin)["settings"]; print(s["nickname"], s["defaultHearts"], s["quality"], s["shareFields"]["body"])')
 [ "$s" = "小林 4 80 False" ] && echo "通過：設定白名單與範圍" || { echo "失敗：設定 $s"; fail=1; }
+# GA4 評估 ID（ADR 028）：去空白轉大寫；格式不對存空字串
+r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"gaMeasurementId":" g-ab12cd34ef "}')
+s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["settings"]["gaMeasurementId"])')
+[ "$s" = "G-AB12CD34EF" ] && echo "通過：GA4 評估 ID 正規化" || { echo "失敗：GA4 評估 ID $s"; fail=1; }
+r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"gaMeasurementId":"G-1\"><script>"}')
+s=$(body "$r" | python3 -c 'import json,sys; print(repr(json.load(sys.stdin)["settings"]["gaMeasurementId"]))')
+[ "$s" = "''" ] && echo "通過：GA4 評估 ID 格式不對存空字串" || { echo "失敗：GA4 評估 ID $s"; fail=1; }
+# 稱呼浮水印：預設開啟，只收布林值
+r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"watermark":"no"}')
+s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["settings"]["watermark"])')
+[ "$s" = "True" ] && echo "通過：浮水印預設開啟、非布林值不收" || { echo "失敗：浮水印 $s"; fail=1; }
+r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"watermark":false}')
+s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["settings"]["watermark"])')
+[ "$s" = "False" ] && echo "通過：浮水印可關閉" || { echo "失敗：浮水印 $s"; fail=1; }
 req PUT /api/settings -H "Content-Type: application/json" -d '{}' >/dev/null
 
 # 分類標籤與公開分享（ADR 019–021）

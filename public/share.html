@@ -120,7 +120,24 @@
 <aside class="note is-warn">
   <span class="note-icon" aria-hidden="true">!</span>
   <div><strong>分享網頁不需要登入就能看</strong><p>連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。</p></div>
-</aside></div></div>
+</aside>
+<dialog class="sheet" id="share-card" aria-labelledby="share-card-title">
+  <div class="sheet-body" tabindex="-1" autofocus>
+    <div class="sheet-head">
+      <div><h2 id="share-card-title">分享連結</h2></div>
+      <button class="sheet-x" type="button" data-dialog-close aria-label="關閉">×</button>
+    </div>
+    <div class="stack"><div class="field">
+  <label for="share-card-url">網址（不用登入就能看）</label>
+  <input readonly id="share-card-url" type="text">
+</div>
+<div class="actions"><button class="btn" type="button" id="share-card-copy">複製網址</button><button hidden class="btn secondary" type="button" id="share-card-link">用其他 App 分享網址</button></div>
+<div class="app-card-preview" id="share-card-preview" aria-live="polite"></div>
+<div class="actions"><a hidden id="share-card-save" download class="btn" href="#">儲存圖片</a><button hidden class="btn secondary" type="button" id="share-card-image">分享圖片</button></div>
+<p class="status" id="share-card-status" role="status"></p></div>
+    <p class="sheet-foot"><button class="btn" type="button" data-dialog-close>關閉</button></p>
+  </div>
+</dialog></div></div>
 </div></div>
 </main>
 <footer class="site-foot is-mono">吃過筆記 · 吃過的店，記一筆就不會忘 · © 2026 <a href="https://github.com/lazyjerry/foods" target="_blank" rel="noopener">lazyjerry</a></footer>
