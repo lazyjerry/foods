@@ -126,7 +126,7 @@ async function api(request, env, ctx, url) {
   }
   if (pathname === "/api/tags" && method === "GET") return json({ tags: await db.listTags(env.DB) });
   if (pathname === "/api/shares") {
-    if (method === "GET") return shares.listShares(env);
+    if (method === "GET") return shares.listShares(env, url);
     if (method === "POST") return shares.createShare(request, env);
   }
   if ((m = pathname.match(/^\/api\/shares\/([^/]+)$/)) && method === "DELETE") return shares.deleteShare(env, m[1]);

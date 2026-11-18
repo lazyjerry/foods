@@ -1,7 +1,7 @@
 // 公開分享連結（ADR 020–022）：分類或單一點評建一個隨機 token，/s/<token> 免登入可看。
 // 公開 API 不回座標、R2 key；照片逐張轉成 base64 data URI 回傳，畫面上不出現圖片網址。
 import { HttpError, json, parseId, readJson } from "./http.js";
-import { getSettings, normalizeTag, parseTags } from "./db.js";
+import { getSettings, normalizeTag, parseTags, searchTerms } from "./db.js";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_REVIEWS = 100;
@@ -39,9 +39,30 @@ function rowToShare(row) {
 const SHARE_SELECT = "SELECT s.*, r.title FROM shares s LEFT JOIN reviews r ON r.id = s.review_id";
 
 // ---------- 管理（需登入） ----------
-export async function listShares(env) {
-  const { results } = await env.DB.prepare(`${SHARE_SELECT} ORDER BY s.created_at DESC`).all();
-  return json({ shares: results.map(rowToShare) });
+// 分頁比照點評列表（ADR 024）的 keyset cursor；shares 沒有數字 id，游標改用 `<created_at>~<token>`。
+function parseShareCursor(value) {
+  if (!value) return null;
+  const m = /^([^~]{1,40})~([A-Za-z0-9_-]{22})$/.exec(String(value));
+  if (!m) throw new HttpError(400, "分頁位置格式不正確，請重新整理頁面");
+  return { createdAt: m[1], token: m[2] };
+}
+
+// 關鍵字比對分類名稱或點評標題；多個關鍵字全部符合才列出，拆詞規則跟點評搜尋相同。
+export async function listShares(env, url) {
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 10, 1), 50);
+  const cursor = parseShareCursor(url.searchParams.get("cursor"));
+  const terms = searchTerms(url.searchParams.get("q"));
+  const conds = terms.map(() => "instr(lower(coalesce(s.tag, '') || ' ' || coalesce(r.title, '')), ?) > 0");
+  if (cursor) conds.push("(s.created_at, s.token) < (?, ?)");
+  const after = cursor ? [cursor.createdAt, cursor.token] : [];
+  const { results } = await env.DB
+    .prepare(`${SHARE_SELECT} ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY s.created_at DESC, s.token DESC LIMIT ?`)
+    .bind(...terms, ...after, limit + 1)
+    .all();
+  const rows = results.slice(0, limit);
+  const hasMore = results.length > limit;
+  const last = rows[rows.length - 1];
+  return json({ shares: rows.map(rowToShare), hasMore, nextCursor: hasMore ? `${last.created_at}~${last.token}` : null });
 }
 
 export async function createShare(request, env) {

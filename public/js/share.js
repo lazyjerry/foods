@@ -1,6 +1,6 @@
 // 分享圖：勾選欄位，把點評畫成浮水印合成在照片上（點評照片、相簿、現場拍照或純文字）。
 // 全部在瀏覽器的 canvas 完成；相簿與拍照的圖不上傳。
-import { $, RATING_DEFS, SHARE_FIELDS, api, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
+import { $, RATING_DEFS, SHARE_FIELDS, api, autoLoadMore, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
 import { loadImage } from "./photo.js";
 import { openShareCard } from "./share-card.js";
 import { combo } from "./combo.js";
@@ -330,7 +330,6 @@ const webReview = $("#web-review");
 const webStatus = $("#web-status");
 const shareList = $("#share-list");
 const listStatus = $("#share-list-status");
-let shareItems = [];
 
 const shareUrl = (token) => `${location.origin}/s/${token}`;
 
@@ -349,25 +348,61 @@ async function copyText(text) {
   }
 }
 
-function renderShares() {
-  shareList.innerHTML = shareItems
-    .map((s) => `<li class="app-key">
+function shareItem(s) {
+  return `<li class="app-key">
   <div class="app-key-body"><strong>${esc(s.title || "（已刪除的點評）")}</strong><span class="app-key-meta">${s.kind === "tag" ? "整個分類" : "單一點評"} · ${esc(shareUrl(s.token))}</span></div>
   <div class="actions"><button class="btn is-sm" type="button" data-copy="${s.token}">複製連結</button><button class="btn is-sm secondary" type="button" data-card="${s.token}">分享</button><a class="btn is-sm secondary" href="/s/${s.token}" target="_blank" rel="noopener">開啟</a><button class="btn is-sm secondary" type="button" data-revoke="${s.token}">停止分享</button></div>
-</li>`)
-    .join("");
-  if (!shareItems.length) setStatus(listStatus, "還沒有分享的連結");
-  else setStatus(listStatus, `共 ${shareItems.length} 個分享中的連結`, "ok");
+</li>`;
 }
 
-async function loadShares() {
+// 後端 cursor 分頁＋關鍵字（做法同 list.js）：清單在卡片內捲動，捲到底自動載入下一頁，按鈕留著手動重試；
+// shareSeq 在重設時加一，丟棄還沒回來的舊請求，避免舊結果插進新清單。
+const SHARE_PAGE = 10;
+const shareMore = $("#share-more-btn");
+const shareInput = $("#share-q");
+let shareQuery = "";
+let shareCursor = null;
+let shareShown = 0;
+let shareSeq = 0;
+
+async function loadShares(reset = true) {
+  if (reset) {
+    shareSeq += 1;
+    shareCursor = null;
+    shareShown = 0;
+    shareList.innerHTML = "";
+    shareMore.hidden = true;
+  } else if (shareMore.disabled) return;
+  const mine = shareSeq;
+  setStatus(listStatus, "載入中…");
+  shareMore.disabled = true;
   try {
-    shareItems = (await api("/api/shares")).shares;
-    renderShares();
+    const qs = new URLSearchParams({ limit: SHARE_PAGE });
+    if (shareCursor) qs.set("cursor", shareCursor);
+    if (shareQuery) qs.set("q", shareQuery);
+    const data = await api("/api/shares?" + qs);
+    if (mine !== shareSeq) return;
+    shareList.insertAdjacentHTML("beforeend", data.shares.map(shareItem).join(""));
+    shareShown += data.shares.length;
+    shareCursor = data.nextCursor;
+    shareMore.hidden = !data.hasMore;
+    if (!shareShown) setStatus(listStatus, shareQuery ? `找不到符合「${shareQuery}」的連結，換個關鍵字試試` : "還沒有分享的連結");
+    else setStatus(listStatus, `${shareQuery ? `「${shareQuery}」的結果：` : ""}已顯示 ${shareShown} 個連結${data.hasMore ? "，捲動看更多" : ""}`, "ok");
+    shareRecheck();
   } catch (err) {
-    setStatus(listStatus, err.message, "error");
+    if (mine === shareSeq) setStatus(listStatus, err.message, "error");
+  } finally {
+    if (mine === shareSeq) shareMore.disabled = false;
   }
 }
+
+const shareRecheck = autoLoadMore(shareMore, () => loadShares(false));
+shareMore.addEventListener("click", () => loadShares(false));
+$("#share-search-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  shareQuery = shareInput.value.trim();
+  loadShares(true);
+});
 
 async function loadWebOptions(reviews) {
   webReview.innerHTML = reviews.length

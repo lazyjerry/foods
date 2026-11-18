@@ -111,12 +111,22 @@
 </div>
 <button class="btn is-block" type="button" id="web-create-btn">建立分享連結<span class="btn-arrow" aria-hidden="true">→</span></button>
 <p class="status" id="web-status" role="status"></p></div></section>
-<section class="card accent-blue is-roomy" aria-labelledby="links-title"><div class="card-heading">
+<section class="card accent-blue is-roomy app-share-links" aria-labelledby="links-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">02</span>
-  <div><h2 id="links-title">已分享的連結</h2><p>複製、開啟，或停止分享讓連結失效</p></div>
+  <div><h2 id="links-title">已分享的連結</h2><p>搜尋、複製、開啟，或停止分享讓連結失效</p></div>
 </div>
-<div class="stack"><p class="status" id="share-list-status" role="status"></p>
-<ul class="app-key-list" id="share-list" aria-label="已分享的連結"></ul></div></section></div>
+<div class="stack"><form class="panel" id="share-search-form"><div class="field">
+  <label for="share-q">關鍵字</label>
+  <div class="input-group">
+  <input id="share-q" type="text" placeholder="例如：拉麵" autocomplete="off" spellcheck="false">
+  <button type="submit" id="share-search-btn" aria-label="搜尋已分享的連結">搜尋</button>
+</div>
+</div></form>
+<p class="status" id="share-list-status" role="status"></p>
+<div class="app-share-scroll">
+<ul class="app-key-list" id="share-list" aria-label="已分享的連結"></ul>
+<button hidden class="btn secondary" type="button" id="share-more-btn">載入更多</button>
+</div></div></section></div>
 <aside class="note is-warn">
   <span class="note-icon" aria-hidden="true">!</span>
   <div><strong>分享網頁不需要登入就能看</strong><p>連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。</p></div>

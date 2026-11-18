@@ -319,13 +319,21 @@ def share_web_panel():
         sn("A1", variant="is-block", id="web-create-btn", text="建立分享連結", arrow=True),
         sn("F10", id="web-status", role="status"),
     )
+    # 已分享的連結：後端 cursor 分頁＋關鍵字搜尋；清單在 .app-share-scroll 內捲動，卡片高度跟左邊卡片一致
+    f3 = sn("F3", id="share-q", placeholder="例如：拉麵", button="搜尋", button_label="搜尋已分享的連結")
+    f3 = f3.replace('<button type="button"', '<button type="submit" id="share-search-btn"', 1)
+    search = sn("F1", id="share-search-form", content=sn("F2:control", id="share-q", label="關鍵字", control=f3))
+    more = sn("A1", variant="secondary", id="share-more-btn", text="載入更多").replace("<button", "<button hidden", 1)
     links = stack(
+        search,
         sn("F10", id="share-list-status", role="status"),
-        '<ul class="app-key-list" id="share-list" aria-label="已分享的連結"></ul>',
+        '<div class="app-share-scroll">\n<ul class="app-key-list" id="share-list" aria-label="已分享的連結"></ul>\n'
+        + more + "\n</div>",
     )
     cards = "\n".join([
         card("01", "web-title", "建立分享連結", "拿到連結的人不用登入就能看", target),
-        card("02", "links-title", "已分享的連結", "複製、開啟，或停止分享讓連結失效", links, accent="accent-blue"),
+        card("02", "links-title", "已分享的連結", "搜尋、複製、開啟，或停止分享讓連結失效", links,
+             accent="accent-blue", variant="is-roomy app-share-links"),
     ])
     note = sn("C5", icon="!", title="分享網頁不需要登入就能看", warn="is-warn",
               text="連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。")

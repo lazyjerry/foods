@@ -98,6 +98,9 @@ r=$(req GET "/api/photos?q=$q"); n=$(body "$r" | python3 -c 'import json,sys; pr
 [ "$n" -ge 1 ] && echo "通過：照片集搜尋分類" || { echo "失敗：照片集搜尋分類 $n 筆"; fail=1; }
 r=$(req POST /api/shares -H "Content-Type: application/json" -d '{"kind":"tag","tag":"冒煙分類"}'); check "建立分類分享" 201 "$(code "$r")" "$(body "$r")"
 tok=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["share"]["token"])')
+r=$(req GET "/api/shares?limit=1&q=$q"); n=$(body "$r" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(sum(s["token"]=="'"$tok"'" for s in d["shares"]), "nextCursor" in d)')
+[ "$n" = "1 True" ] && echo "通過：已分享的連結搜尋與分頁欄位" || { echo "失敗：已分享的連結搜尋（$n）"; fail=1; }
+r=$(req GET "/api/shares?cursor=bad"); check "已分享的連結壞游標" 400 "$(code "$r")"
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok"); check "公開分享免登入" 200 "$c"
 grep -q "r2_key\|photos/$id/\|\"lat\"" "$TMP/pub" && { echo "失敗：公開分享露出 key 或座標"; fail=1; } || echo "通過：公開分享不含 key 與座標"
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok/photos/$pid"); check "公開照片" 200 "$c"

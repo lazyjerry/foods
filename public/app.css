@@ -211,3 +211,12 @@ main:has(.app-fab) { padding-bottom: 112px; }
 @media (prefers-reduced-motion: reduce) {
   .app-combo-arrow { transition: none; }
 }
+
+/* 分享頁「已分享的連結」：卡片隨格線列拉到跟左邊卡片同高，清單在 .app-share-scroll 內捲動；
+   contain: size 讓清單長度不撐高整列，列高由左卡決定（右卡至少留 12rem 給清單）。單欄時沒有鄰卡，改成限高捲動。 */
+.app-share-links { display: flex; flex-direction: column; }
+.app-share-links > .stack { flex: 1 1 auto; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); }
+.app-share-scroll { display: grid; align-content: start; gap: var(--space-3); min-height: 12rem; padding: 4px; margin: -4px; overflow-y: auto; overscroll-behavior: contain; contain: size; }
+@media (max-width: 760px) {
+  .app-share-scroll { max-height: 60vh; contain: none; }
+}
