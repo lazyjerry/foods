@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 # 重拍 README 的網站截圖與操作影片。
-# 用法：bash scripts/readme-media.sh [--seed N] [--port 8790]
+# 用法：bash scripts/readme-media.sh [--seed N] [--port 8790] [--share-only]
 #   在一次性的本機 D1／R2（暫存目錄，不碰 .wrangler/ 與正式環境）起 wrangler dev，
 #   寫入 scripts/readme-media-reviews.json 的虛構點評，從 public/img/illustrations/ 隨機挑插畫上傳，
-#   再用 Playwright 拍 docs/readme-media/screenshots/*.png、錄 docs/readme-media/demo.gif。
+#   再用 Playwright 拍 docs/readme-media/screenshots/*.png、錄 docs/readme-media/demo.gif 與 share.gif（分享操作）。
+#   --share-only：只重錄 share.gif，截圖與 demo.gif 不動。
 #   需要：.dev.vars（APP_PASSWORD）、Python 3 + Playwright + Pillow、ffmpeg；地圖圖磚要連網。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT=8790
 PY_ARGS=()
+SHARE_ONLY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT=$2; shift 2 ;;
     --seed) PY_ARGS+=(--seed "$2"); shift 2 ;;
-    *) echo "用法：bash scripts/readme-media.sh [--seed N] [--port 8790]" >&2; exit 2 ;;
+    --share-only) PY_ARGS+=(--share-only); SHARE_ONLY=1; shift ;;
+    *) echo "用法：bash scripts/readme-media.sh [--seed N] [--port 8790] [--share-only]" >&2; exit 2 ;;
   esac
 done
 
@@ -53,6 +56,11 @@ curl -s -o /dev/null "http://localhost:$PORT/login" || { echo "wrangler dev 60 �
 python3 scripts/readme_media.py "http://localhost:$PORT" "$PASS" --out docs/readme-media --video-dir "$STATE/video" "${PY_ARGS[@]+"${PY_ARGS[@]}"}"
 
 echo "轉檔影片"
-WEBM=$(ls "$STATE"/video/*.webm | head -1)
-ffmpeg -loglevel error -y -i "$WEBM" -vf "fps=10,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" docs/readme-media/demo.gif
-ls -l docs/readme-media/demo.gif docs/readme-media/screenshots/
+GIF_VF="fps=10,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4"
+if [ -z "$SHARE_ONLY" ]; then
+  WEBM=$(ls "$STATE"/video/*.webm | head -1)
+  ffmpeg -loglevel error -y -i "$WEBM" -vf "$GIF_VF" docs/readme-media/demo.gif
+fi
+WEBM=$(ls "$STATE"/video/share/*.webm | head -1)
+ffmpeg -loglevel error -y -i "$WEBM" -vf "$GIF_VF" docs/readme-media/share.gif
+ls -l docs/readme-media/*.gif docs/readme-media/screenshots/

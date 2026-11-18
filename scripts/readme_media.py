@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """README 截圖與操作影片（Playwright）。由 scripts/readme-media.sh 呼叫，對一次性的本機 wrangler dev 執行。
 
-用法：python3 scripts/readme_media.py BASE_URL PASSWORD --out docs/readme-media --video-dir 暫存目錄 [--seed N]
+用法：python3 scripts/readme_media.py BASE_URL PASSWORD --out docs/readme-media --video-dir 暫存目錄 [--seed N] [--share-only]
 - 寫入 scripts/readme-media-reviews.json 的虛構點評；照片從 public/img/illustrations/*.jpg 隨機挑（--seed 固定結果）。
-- 截圖存 <out>/screenshots/，影片（webm）存 --video-dir，轉檔交給外層 shell。
+- 截圖存 <out>/screenshots/，影片（webm）存 --video-dir（分享操作影片另存 <video-dir>/share/），轉檔交給外層 shell。
+- --share-only：只錄分享操作影片，不重拍截圖與 demo 影片。
 """
 import argparse
 import json
@@ -22,6 +23,7 @@ ap.add_argument("--account", default="admin")
 ap.add_argument("--out", required=True)
 ap.add_argument("--video-dir", required=True)
 ap.add_argument("--seed", type=int)
+ap.add_argument("--share-only", action="store_true")
 args = ap.parse_args()
 BASE = args.base.rstrip("/")
 OUT = Path(args.out)
@@ -160,12 +162,66 @@ def video(browser, ids):
     ctx.close()  # 關閉 context 才會寫出 webm
 
 
+def share_video(browser, ids, share):
+    """分享操作（約 30 秒）：分享圖 → 建立分享網頁連結 → 分享卡片 → 公開頁的分享卡片。"""
+    size = {"width": 1280, "height": 800}
+    ctx = masked_context(browser, viewport=size, record_video_dir=str(Path(args.video_dir) / "share"), record_video_size=size, locale="zh-TW")
+    ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=BASE)
+    must(ctx.request.post(BASE + "/api/login", data={"username": args.account, "password": args.password}), "分享影片登入")
+    card_ready = "document.querySelector('#share-card-preview img')?.naturalWidth > 0"
+
+    def show_card():
+        page.wait_for_function(card_ready, timeout=20000)
+        page.wait_for_timeout(1500)
+        page.evaluate("(() => { const el = document.querySelector('#share-card-preview'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); })()")
+        page.wait_for_timeout(2200)
+
+    page = ctx.new_page()
+    rid = ids["夜貓鹽酥雞"]
+    page.goto(f"{BASE}/share?id={rid}")
+    settle(page, 2000)
+    scroll_to(page, "#output-title")
+    page.wait_for_timeout(3000)
+
+    scroll_to(page, "main")
+    page.click('[data-tabs] [data-tab="web"]')
+    page.wait_for_timeout(1000)
+    page.click('label:has(input[name="web-kind"][value="review"])')
+    page.select_option("#web-review", str(rid))
+    page.wait_for_timeout(800)
+    page.click("#web-create-btn")
+    page.wait_for_function("document.querySelector('#web-status').textContent.includes('連結')")
+    page.wait_for_timeout(1500)
+    tok = next(s["token"] for s in must(ctx.request.get(BASE + "/api/shares"), "讀分享連結")["shares"] if s["kind"] == "review")
+    scroll_to(page, "#links-title")
+    page.wait_for_timeout(800)
+    page.click(f'#share-list [data-card="{tok}"]')
+    show_card()
+    page.click("#share-card-copy")
+    page.wait_for_timeout(1500)
+    page.click("#share-card [data-dialog-close]")
+    page.wait_for_timeout(600)
+
+    page.goto(f"{BASE}/s/{share['token']}")
+    settle(page, 1500)
+    page.evaluate("window.scrollBy({ top: 500, behavior: 'smooth' })")
+    page.wait_for_timeout(1800)
+    page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })")
+    page.wait_for_timeout(900)
+    page.click("#share-open")
+    show_card()
+    page.wait_for_timeout(2500)
+    ctx.close()  # 關閉 context 才會寫出 webm
+
+
 with sync_playwright() as p:
     browser = p.chromium.launch()
     req_ctx = browser.new_context()
     ids, share = seed_data(req_ctx.request)
     req_ctx.close()
-    screenshots(browser, ids, share)
-    video(browser, ids)
+    if not args.share_only:
+        screenshots(browser, ids, share)
+        video(browser, ids)
+    share_video(browser, ids, share)
     browser.close()
 print("截圖：" + "、".join(sorted(x.name for x in SHOTS.glob("*.png"))))
