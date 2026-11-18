@@ -288,6 +288,7 @@ export async function listTags(db) {
     .all();
   return results.map((r) => ({ tag: r.tag, count: r.count }));
 }
+
 // 統計頁（/stats）：日期範圍內的精簡點評列，總覽、前五名、評比對照與趨勢都在瀏覽器算（public/js/stats-calc.js）。
 // 日期以用餐日期為準，沒填時用建立日期（UTC）；from／to 都可省略，省略代表不限。
 // 超過上限時保留最近的 STATS_MAX_ROWS 筆並回 truncated，由頁面提示縮小範圍。
@@ -325,7 +326,6 @@ export async function listStatsRows(db, { from, to }) {
   }));
   return { from: from || null, to: to || null, items, truncated: results.length > STATS_MAX_ROWS };
 }
-
 
 export function sanitizeSettings(input) {
   const s = structuredClone(DEFAULT_SETTINGS);
