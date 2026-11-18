@@ -8,6 +8,42 @@
 .app-geo-results:empty { display: none; }
 .app-geo-option { justify-content: flex-start; text-align: left; white-space: normal; line-height: var(--lh-snug); }
 
+/* 首頁地圖模式（ADR 029）：圖釘是 32px 方塊轉 45° 的水滴形，尖端對準座標；尺寸改了要同步 map.js 的 iconSize／iconAnchor */
+.app-view { display: grid; gap: var(--space-3); }
+.app-view[hidden] { display: none; }
+.app-map.app-map-browse { height: 520px; }
+.app-pin-icon { background: none; border: 0; }
+.app-pin-icon:focus-visible { outline: var(--focus); }
+.app-pin { position: absolute; left: 2px; top: 0; display: grid; place-items: center; width: 32px; height: 32px; border: var(--line); border-radius: var(--radius-media) var(--radius-media) var(--radius-media) 0; transform: rotate(-45deg); }
+.app-pin-value { transform: rotate(45deg); font: var(--fw-heavy) var(--fs-xs)/var(--lh-tight) var(--mono); color: var(--ink); }
+.app-pin-count { position: absolute; top: -6px; right: -8px; min-width: 18px; padding: 2px var(--space-1); color: var(--white); background: var(--ink); border-radius: var(--radius-icon); font: var(--fw-heavy) var(--fs-2xs)/var(--lh-tight) var(--mono); text-align: center; }
+.app-pin-cluster { position: absolute; inset: 0; display: grid; place-items: center; color: var(--white); background: var(--ink); border: var(--line); border-radius: var(--radius-icon); box-shadow: var(--shadow-sm); font: var(--fw-heavy) var(--fs-sm)/var(--lh-tight) var(--mono); }
+.app-pin-swatch.app-pin-cluster { position: static; box-shadow: none; }
+.app-pin-top { background: var(--coral); }
+.app-pin-good { background: var(--amber); }
+.app-pin-low { background: var(--blue); }
+.app-pin-low .app-pin-value { color: var(--white); }
+.app-pin-none { background: var(--card); }
+.app-map-legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: 0; list-style: none; color: var(--ink-2); font-size: var(--fs-xs); }
+.app-map-legend li { display: flex; align-items: center; gap: var(--space-1); }
+.app-pin-swatch { display: inline-block; width: 14px; height: 14px; border: var(--line); border-radius: var(--radius-icon); }
+.app-pop { display: grid; gap: var(--space-2); min-width: 0; color: var(--ink); font: var(--fs-sm)/var(--lh-snug) var(--font); overflow-wrap: anywhere; }
+.app-pop h3 { margin: 0; font-size: var(--fs-md); }
+.app-pop-head { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-2); align-items: start; }
+.app-pop-head img, .app-pop-list img { display: block; width: 64px; height: 64px; object-fit: cover; border: var(--line); }
+.app-pop .app-pop-title a { color: var(--coral-ink); font-weight: var(--fw-bold); }
+.app-pop .app-tag-link { color: inherit; } /* 蓋過 leaflet.css 的 .leaflet-container a 連結色 */
+.app-pop-meta, .app-pop-addr { color: var(--ink-2); font-size: var(--fs-xs); }
+.app-pop-hearts { color: var(--coral-ink); font-weight: var(--fw-bold); }
+.app-pop-text { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.app-pop-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.app-pop-list { display: grid; gap: var(--space-2); max-height: 240px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.app-pop-list li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+.app-pop-list img { width: 48px; height: 48px; }
+@media (max-width: 760px) {
+  .app-map.app-map-browse { height: 420px; }
+}
+
 /* 心形評比 */
 .app-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .app-hearts { margin: 0; padding: 0; border: 0; min-width: 0; }

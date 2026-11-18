@@ -50,7 +50,7 @@
   <span class="index-badge" aria-hidden="true">02</span>
   <div><h2 id="list-title">搜尋點評</h2><p>依店名、地址、點評內容或分類篩選</p></div>
 </div>
-<form class="panel" id="search-form"><div class="field">
+<div class="stack"><form class="panel" id="search-form"><div class="field">
   <label for="q">關鍵字</label>
   <div class="input-group">
   <input id="q" type="text" placeholder="例如：牛肉麵 大安" autocomplete="off" spellcheck="false">
@@ -58,9 +58,20 @@
 </div>
   <p class="hint">以空白分隔多個關鍵字，全部符合才列出</p>
 </div></form>
+<fieldset class="segmented">
+  <legend class="visually-hidden">檢視方式</legend>
+  <label><input type="radio" name="view" value="list" checked><span>列表</span></label>
+  <label><input type="radio" name="view" value="map"><span>地圖</span></label>
+</fieldset>
 <p class="status" id="list-status" role="status"></p>
+<div class="app-view" id="list-view">
 <div class="app-review-list" id="review-list"></div>
-<button hidden class="btn secondary" type="button" id="more-btn">載入更多</button></section></div>
+<button hidden class="btn secondary" type="button" id="more-btn">載入更多</button>
+</div>
+<div class="app-view" id="map-view" hidden>
+<div class="app-map app-map-browse" id="review-map" role="application" aria-label="點評地圖：點圖釘看點評摘要"></div>
+<ul class="app-map-legend" aria-label="圖釘顏色：評比平均"><li><span class="app-pin-swatch app-pin-top" aria-hidden="true"></span>4.5 以上</li><li><span class="app-pin-swatch app-pin-good" aria-hidden="true"></span>3.5–4.4</li><li><span class="app-pin-swatch app-pin-low" aria-hidden="true"></span>3.4 以下</li><li><span class="app-pin-swatch app-pin-none" aria-hidden="true"></span>沒有評比</li><li><span class="app-pin-swatch app-pin-cluster" aria-hidden="true"></span>附近多家，點一下放大</li><li>圖釘上的數字是平均心數，右上角小數字是同一地點的筆數</li></ul>
+</div></div></section></div>
 <aside class="note">
   <span class="note-icon" aria-hidden="true">⌁</span>
   <div><strong>照片在你的裝置上壓縮後才上傳</strong><p>原始照片不會離開裝置，上傳的是壓縮後的 JPEG，拍攝位置等 EXIF 資料一併移除。地址查詢經由 OpenStreetMap Nominatim。</p></div>

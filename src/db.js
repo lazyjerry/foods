@@ -151,9 +151,12 @@ function keysetPage(rows, limit) {
   return { items, hasMore, nextCursor: hasMore ? `${last.created_at}~${last.id}` : null };
 }
 
+// 列表與地圖模式共用的關鍵字條件：店名、地址、內文、分類任一處含該字
+const SEARCH_COND = "instr(lower(r.title || ' ' || r.address || ' ' || r.body || ' ' || r.tags), ?) > 0";
+
 export async function listReviews(db, { q, limit, cursor }) {
   const terms = searchTerms(q);
-  const conds = terms.map(() => "instr(lower(r.title || ' ' || r.address || ' ' || r.body || ' ' || r.tags), ?) > 0");
+  const conds = terms.map(() => SEARCH_COND);
   if (cursor) conds.push("(r.created_at, r.id) < (?, ?)");
   const sql = `SELECT r.*,
       (SELECT p.r2_key FROM photos p WHERE p.review_id = r.id ORDER BY p.id LIMIT 1) AS cover_key,
@@ -164,6 +167,36 @@ export async function listReviews(db, { q, limit, cursor }) {
   const { results } = await db.prepare(sql).bind(...terms, ...after, limit + 1).all();
   const page = keysetPage(results, limit);
   return { ...page, items: page.items.map(rowToReview) };
+}
+
+// 首頁地圖模式（ADR 029）：一次取回符合搜尋的點評座標與 popup 用的欄位，不分頁；
+// 只取最新 MAP_POINT_LIMIT 筆，內文只取開頭 MAP_EXCERPT 字，避免整份點評內容一起送出。
+export const MAP_POINT_LIMIT = 500;
+const MAP_EXCERPT = 60;
+
+export async function listReviewPoints(db, { q }) {
+  const terms = searchTerms(q);
+  const conds = terms.map(() => SEARCH_COND);
+  const sql = `SELECT r.id, r.title, r.price, r.lat, r.lng, r.address, r.ratings, r.tags, r.visited_on,
+      substr(r.body, 1, ${MAP_EXCERPT}) AS excerpt, length(r.body) > ${MAP_EXCERPT} AS excerpt_cut,
+      (SELECT p.r2_key FROM photos p WHERE p.review_id = r.id ORDER BY p.id LIMIT 1) AS cover_key
+    FROM reviews r ${conds.length ? "WHERE " + conds.join(" AND ") : ""}
+    ORDER BY r.created_at DESC, r.id DESC LIMIT ?`;
+  const { results } = await db.prepare(sql).bind(...terms, MAP_POINT_LIMIT + 1).all();
+  const items = results.slice(0, MAP_POINT_LIMIT).map((row) => ({
+    id: row.id,
+    title: row.title,
+    price: row.price,
+    lat: row.lat,
+    lng: row.lng,
+    address: row.address,
+    ratings: JSON.parse(row.ratings || "{}"),
+    tags: parseTags(row.tags),
+    visited_on: row.visited_on,
+    excerpt: row.excerpt_cut ? row.excerpt + "…" : row.excerpt,
+    cover_key: row.cover_key,
+  }));
+  return { items, truncated: results.length > MAP_POINT_LIMIT };
 }
 
 export async function getReview(db, id) {

@@ -148,12 +148,14 @@ def search_control(placeholder, label):
 
 
 def build_index():
-    content = "\n".join([
+    # 放進 L5：搜尋表單、列表／地圖切換、狀態列之間的間距由 .stack 決定，不然切換鈕會貼著搜尋表單
+    content = stack(
         sn("F1", id="search-form", content=search_control("例如：牛肉麵 大安", "搜尋點評")),
+        view_segment(),
         sn("F10", id="list-status", role="status"),
-        '<div class="app-review-list" id="review-list"></div>',
-        sn("A1", variant="secondary", id="more-btn", text="載入更多").replace("<button", "<button hidden", 1),
-    ])
+        list_view(),
+        map_view(),
+    )
     # 新增點評獨立成第一張卡片，進首頁第一眼就看到（ADR 016）
     add = sn("A2", buttons=sn("A1:link", href="/edit", text="新增點評"))
     cards = "\n".join([
@@ -165,6 +167,36 @@ def build_index():
          {"eyebrow": "FOOD REVIEW LOG", "solid": "食物點評", "outline": "列表",
           "lede": "想不起上次那家好不好吃，搜一下就知道。"},
          main, ["module:js/list.js"], "index")
+
+
+def view_segment():
+    # 首頁列表／地圖切換（ADR 029）：?view=map 由 list.js 開地圖模式
+    return sn("A5", legend="檢視方式", name="view", options=[
+        {"value": "list", "text": "列表", "checked": True}, {"value": "map", "text": "地圖"}])
+
+
+def list_view():
+    # 包一層讓地圖模式可整塊隱藏；隱藏時「載入更多」不在可視範圍，自動載入跟著停
+    return "\n".join([
+        '<div class="app-view" id="list-view">',
+        '<div class="app-review-list" id="review-list"></div>',
+        sn("A1", variant="secondary", id="more-btn", text="載入更多").replace("<button", "<button hidden", 1),
+        "</div>",
+    ])
+
+
+MAP_LEGEND = [("top", "4.5 以上"), ("good", "3.5–4.4"), ("low", "3.4 以下"), ("none", "沒有評比"), ("cluster", "附近多家，點一下放大")]
+
+
+def map_view():
+    # 圖釘顏色依評比平均分級，數字是平均心數；同一位置的多筆點評合併成一支並標筆數；靠太近的合併成深色方塊（ADR 029）
+    legend = "".join(f'<li><span class="app-pin-swatch app-pin-{k}" aria-hidden="true"></span>{t}</li>' for k, t in MAP_LEGEND)
+    return "\n".join([
+        '<div class="app-view" id="map-view" hidden>',
+        '<div class="app-map app-map-browse" id="review-map" role="application" aria-label="點評地圖：點圖釘看點評摘要"></div>',
+        f'<ul class="app-map-legend" aria-label="圖釘顏色：評比平均">{legend}<li>圖釘上的數字是平均心數，右上角小數字是同一地點的筆數</li></ul>',
+        "</div>",
+    ])
 
 
 def build_edit():

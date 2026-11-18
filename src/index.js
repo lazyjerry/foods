@@ -99,6 +99,7 @@ async function api(request, env, ctx, url) {
     if (method === "GET") return json(await db.listReviews(env.DB, pageParams(url, 100)));
     if (method === "POST") return json({ review: await db.createReview(env.DB, db.validateReview(await readJson(request))) }, 201);
   }
+  if (pathname === "/api/reviews/map" && method === "GET") return json(await db.listReviewPoints(env.DB, { q: url.searchParams.get("q") || "" }));
   if ((m = pathname.match(/^\/api\/reviews\/(\d+)$/))) {
     const id = parseId(m[1]);
     if (method === "GET") return json({ review: await db.getReview(env.DB, id) });
