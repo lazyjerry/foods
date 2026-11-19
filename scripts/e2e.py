@@ -130,6 +130,23 @@ with sync_playwright() as p:
        "待上傳" in page.text_content(".app-photo-tile:last-child .meta") and not page.evaluate("document.querySelector('#illust-sheet').open"))
     page.click(".app-photo-tile:last-child [data-remove]")
 
+    # 自動插畫：沒有照片、分類含插畫名稱時，儲存前自動加入那張插畫（分類優先於標題）；測完刪掉這筆
+    page.goto(BASE + "/edit")
+    page.wait_for_function("document.querySelector('#address').value.length > 0", timeout=15000)
+    page.fill("#title", "E2E 自動插畫拉麵")
+    page.fill("#price", "120")
+    page.fill("#tag-input", "大腸包小腸")
+    page.press("#tag-input", "Enter")
+    ok("沒有照片時提示會自動加入插畫（分類優先於標題）", "「大腸包小腸」插畫" in page.text_content("#photo-status"), page.text_content("#photo-status"))
+    page.click("#save-btn")
+    page.wait_for_function("document.querySelector('#save-status').textContent === '已儲存'", timeout=20000)
+    ok("儲存後自動加入一張插畫並上傳",
+       page.locator(".app-photo-tile").count() == 1 and "已上傳" in page.text_content(".app-photo-tile .meta")
+       and "已自動加入「大腸包小腸」" in page.text_content("#photo-status"), page.text_content("#photo-status"))
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("#delete-btn")
+    page.wait_for_url(BASE + "/")
+
     # 列表與搜尋
     page.goto(BASE + "/")
     page.wait_for_selector(".app-review")

@@ -420,16 +420,48 @@ illustSheet.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-illust]");
   if (!btn) return;
   if (illustSheet.open) illustSheet.close();
-  const url = btn.dataset.illust;
+  await addIllustration(btn.dataset.illust);
+});
+
+// 回傳是否加入成功
+async function addIllustration(url) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
     const blob = await res.blob();
     await addFiles([new File([blob], url.split("/").pop(), { type: blob.type || "image/jpeg" })]);
+    return true;
   } catch {
     setStatus(photoStatus, "插畫載入失敗，請檢查網路後再試一次", "error");
+    return false;
   }
-});
+}
+
+// 自動插畫：點評沒有照片、但分類或標題含某張插畫的名稱時，儲存前自動加入那張插畫
+// 比對順序：分類優先於標題；同一層取名稱最長的，避免短名稱（如「麵線」）搶走較精確的長名稱
+const ILLUSTS = [...illustSheet.querySelectorAll("[data-illust]")]
+  .map((b) => ({ url: b.dataset.illust, label: b.textContent.trim() }))
+  .sort((a, b) => b.label.length - a.label.length);
+let illustHint = ""; // 目前顯示在照片狀態列的提示；狀態列被其他訊息蓋掉後就不再清除它
+
+function matchIllust() {
+  if (visiblePhotos().length) return null;
+  const pending = tagInput.value.split(/[\s,，、]+/).map(cleanTag).filter(Boolean); // 還沒按「加入」的分類，儲存時也會一併存
+  const allTags = [...tags, ...pending];
+  const title = f.title.value;
+  return ILLUSTS.find((i) => allTags.some((t) => t.includes(i.label))) || ILLUSTS.find((i) => title.includes(i.label)) || null;
+}
+
+function updateIllustHint() {
+  const m = matchIllust();
+  const text = m ? `目前沒有照片，儲存時會自動加入「${m.label}」插畫` : "";
+  if (text === illustHint) return;
+  if (text) setStatus(photoStatus, text);
+  else if (photoStatus.textContent.trim() === illustHint) setStatus(photoStatus, "");
+  illustHint = text;
+}
+
+for (const type of ["input", "click", "keyup"]) form.addEventListener(type, updateIllustHint);
 
 async function syncPhotos(id) {
   const tasks = [];
@@ -477,6 +509,7 @@ function fillReview(r) {
   $("#share-link").hidden = false;
   $("#delete-btn").hidden = false;
   document.title = `編輯：${r.title}｜食物點評`;
+  updateIllustHint();
 }
 
 form.addEventListener("submit", async (e) => {
@@ -494,6 +527,8 @@ form.addEventListener("submit", async (e) => {
     tagInput.focus();
     return;
   }
+  const auto = matchIllust(); // 沒有照片時依分類或標題補一張插畫；壓縮期間 addFiles 自己會鎖畫面
+  const autoAdded = auto ? await addIllustration(auto.url) : false;
   saving = true;
   lockScreen("儲存中…"); // 先鎖再停用按鈕：停用會讓瀏覽器移走焦點，鎖定時要記住的是儲存鈕
   $("#save-btn").disabled = true;
@@ -513,6 +548,7 @@ form.addEventListener("submit", async (e) => {
     fillReview(fresh.review);
     if (photoErrors.length) setStatus(saveStatus, `點評已儲存，但有 ${photoErrors.length} 項照片處理失敗：${photoErrors[0]}`, "error");
     else setStatus(saveStatus, "已儲存", "ok");
+    if (autoAdded) setStatus(photoStatus, `沒有照片，已自動加入「${auto.label}」插畫`, "ok");
   } catch (err) {
     setStatus(saveStatus, showFieldErrors(err.fields) || err.message, "error");
   } finally {
