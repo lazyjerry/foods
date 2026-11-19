@@ -74,6 +74,7 @@ bash scripts/check.sh                          # 重產頁面、Jerry UI 規則�
 bash scripts/smoke-api.sh                      # API 冒煙測試（本機）
 python3 scripts/e2e.py                         # 瀏覽器端到端測試（本機，含虛擬驗證器的通行金鑰流程）
 bash scripts/smoke-api.sh <網址> <密碼> [帳號]  # 對正式環境跑，會建立並刪除一筆測試資料；不測修改密碼
+python3 scripts/photo-gc-test.py               # 照片檔共用的併發與中斷情境（本機，需先跑 npx wrangler dev --test-scheduled）
 ```
 
 重拍 README 的截圖與影片（需要 ffmpeg；地圖圖磚要連網）：
@@ -155,6 +156,7 @@ scripts/
   check.sh        靜態檢查
   smoke-api.sh    API 冒煙測試
   e2e.py          Playwright 端到端測試
+  photo-gc-test.py  照片檔共用的鎖與回收情境測試
   build_icons.py  產生 icon 與 favicon（需 macOS 內建中文字型；改設計時才重跑）
   readme-media.sh、readme_media.py、readme-media-reviews.json  重拍 README 截圖與影片
 public/img/       點評沒有照片時的預設圖（no-photo-1～5.svg，依點評 id 分配）

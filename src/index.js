@@ -52,47 +52,61 @@ async function serveMedia(request, env, key, url) {
 // - ?illust=<檔名>：引用站內插畫，不傳檔、不進 R2
 // - ?sha256=<雜湊>、不帶 body：問 R2 有沒有同一張；有就直接引用，沒有回 { needUpload: true }，前端再帶檔案重送
 // - body 是 JPEG：後端自己算雜湊當 key，R2 已有同一張就不再寫入
+// R2 照片的「確認檔在不在 → 寫紀錄」整段持有該 key 的鎖，不會跟回收（沒有引用就刪檔）交錯。
 async function uploadPhoto(request, env, reviewId, url) {
   if (!(await db.reviewExists(env.DB, reviewId))) throw new HttpError(404, "找不到這筆點評，請先儲存點評再上傳照片");
-  const width = Number(url.searchParams.get("w")) || null;
-  const height = Number(url.searchParams.get("h")) || null;
-  const caption = [...(url.searchParams.get("caption") || "").trim()].slice(0, 100).join("");
+  const meta = {
+    review_id: reviewId,
+    width: Number(url.searchParams.get("w")) || null,
+    height: Number(url.searchParams.get("h")) || null,
+    caption: [...(url.searchParams.get("caption") || "").trim()].slice(0, 100).join(""),
+  };
   const illust = url.searchParams.get("illust");
   const sha = url.searchParams.get("sha256");
-  let key;
-  let bytes;
-  let created = false; // 這次請求才寫進 R2 的檔，寫紀錄失敗時要收掉
+
   if (illust) {
     const info = await media.illustInfo(env, illust);
     if (!info) throw new HttpError(404, "找不到這張插畫");
-    ({ key, bytes } = info);
-  } else if (sha) {
+    const photo = await db.insertPhoto(env.DB, { ...meta, ...info });
+    return json({ photo, reused: true }, 201);
+  }
+
+  if (sha) {
     if (!/^[0-9a-f]{64}$/.test(sha)) throw new HttpError(400, "照片雜湊格式不正確");
-    key = media.blobKey(sha);
-    const head = await env.PHOTOS.head(key);
-    if (!head) return json({ needUpload: true });
-    bytes = head.size;
-  } else {
-    if ((request.headers.get("Content-Type") || "") !== "image/jpeg") throw new HttpError(415, "只接受壓縮後的 JPEG 照片");
-    const buf = await request.arrayBuffer();
-    if (buf.byteLength === 0) throw new HttpError(400, "照片是空的");
-    if (buf.byteLength > MAX_PHOTO_BYTES) throw new HttpError(413, "照片超過 3 MB，請調低設定頁的照片長邊或品質");
-    const head = new Uint8Array(buf, 0, 3);
-    if (head[0] !== 0xff || head[1] !== 0xd8 || head[2] !== 0xff) throw new HttpError(415, "檔案不是 JPEG");
-    key = media.blobKey(await media.sha256Hex(buf));
-    bytes = buf.byteLength;
-    if (!(await env.PHOTOS.head(key))) {
+    const key = media.blobKey(sha);
+    return media.withLock(env, key, async (lock) => {
+      const head = await env.PHOTOS.head(key);
+      if (!head) return json({ needUpload: true });
+      const photo = await db.insertPhoto(env.DB, { ...meta, key, bytes: head.size }, lock);
+      if (!photo) throw new HttpError(503, "照片處理逾時，請再試一次");
+      return json({ photo, reused: true }, 201);
+    });
+  }
+
+  if ((request.headers.get("Content-Type") || "") !== "image/jpeg") throw new HttpError(415, "只接受壓縮後的 JPEG 照片");
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength === 0) throw new HttpError(400, "照片是空的");
+  if (buf.byteLength > MAX_PHOTO_BYTES) throw new HttpError(413, "照片超過 3 MB，請調低設定頁的照片長邊或品質");
+  const head = new Uint8Array(buf, 0, 3);
+  if (head[0] !== 0xff || head[1] !== 0xd8 || head[2] !== 0xff) throw new HttpError(415, "檔案不是 JPEG");
+  const key = media.blobKey(await media.sha256Hex(buf));
+  return media.withLock(env, key, async (lock) => {
+    const created = !(await env.PHOTOS.head(key));
+    if (created) {
+      await media.queueGc(env, key); // 先登記再寫檔：寫完檔、寫紀錄前中斷的話，排程會回收這個孤兒檔
       await env.PHOTOS.put(key, buf, { httpMetadata: { contentType: "image/jpeg" } });
-      created = true;
     }
-  }
-  try {
-    const photo = await db.insertPhoto(env.DB, { review_id: reviewId, key, caption, width, height, bytes });
+    let photo;
+    try {
+      photo = await db.insertPhoto(env.DB, { ...meta, key, bytes: buf.byteLength }, lock);
+    } catch (err) {
+      if (created) await media.collect(env, lock).catch(() => {}); // 紀錄寫不進去：沒有引用就收掉剛寫的檔，失敗留給排程
+      throw err;
+    }
+    if (!photo) throw new HttpError(503, "照片處理逾時，請再試一次"); // 鎖已過期：檔留著，由排程確認有沒有引用
+    if (created) await media.collect(env, lock).catch(() => {}); // 已有引用：只移除待回收登記
     return json({ photo, reused: !created }, 201);
-  } catch (err) {
-    if (created) await media.deleteUnreferenced(env, [key]); // 中繼資料寫不進去就不要留孤兒檔
-    throw err;
-  }
+  });
 }
 
 async function api(request, env, ctx, url) {
@@ -131,7 +145,7 @@ async function api(request, env, ctx, url) {
     if (method === "PUT") return json({ review: await db.updateReview(env.DB, id, db.validateReview(await readJson(request))) });
     if (method === "DELETE") {
       const keys = await db.deleteReview(env.DB, id);
-      await media.deleteUnreferenced(env, keys); // 其他點評還引用的照片檔留著
+      await media.collectKeys(env, keys); // 其他點評還引用的照片檔留著；回收失敗由排程重試
       return json({ ok: true, deletedPhotos: keys.length });
     }
   }
@@ -146,7 +160,7 @@ async function api(request, env, ctx, url) {
     }
     if (method === "DELETE") {
       const key = await db.deletePhoto(env.DB, id);
-      await media.deleteUnreferenced(env, [key]); // 其他照片還引用同一個檔就留著
+      await media.collectKeys(env, [key]); // 其他照片還引用同一個檔就留著；回收失敗由排程重試
       return json({ ok: true });
     }
   }
@@ -205,5 +219,10 @@ export default {
     } catch (err) {
       return withSecurityHeaders(errorResponse(err));
     }
+  },
+
+  // 排程（wrangler.jsonc triggers.crons）：回收中途失敗、還留在 blob_gc 的照片檔
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(media.sweep(env).then((r) => console.log("照片檔回收", r)));
   },
 };

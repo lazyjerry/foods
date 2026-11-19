@@ -225,7 +225,8 @@ export async function updateReview(db, id, v) {
 
 export async function deleteReview(db, id) {
   const { results } = await db.prepare("SELECT r2_key FROM photos WHERE review_id = ?").bind(id).all();
-  const [, , res] = await db.batch([
+  const [, , , res] = await db.batch([
+    db.prepare(QUEUE_GC + "review_id = ?").bind(now(), id), // 跟刪除同一個交易：連查詢後才加入的照片也會登記
     db.prepare("DELETE FROM shares WHERE review_id = ?").bind(id),
     db.prepare("DELETE FROM photos WHERE review_id = ?").bind(id),
     db.prepare("DELETE FROM reviews WHERE id = ?").bind(id),
@@ -238,12 +239,17 @@ export async function reviewExists(db, id) {
   return Boolean(await db.prepare("SELECT 1 FROM reviews WHERE id = ?").bind(id).first());
 }
 
-export async function insertPhoto(db, p) {
-  const row = await db
-    .prepare("INSERT INTO photos (review_id, r2_key, caption, width, height, bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *")
-    .bind(p.review_id, p.key, p.caption, p.width, p.height, p.bytes, now())
-    .first();
-  return rowToPhoto(row);
+// lock（src/media.js withLock 給的 { key, owner }）：只有仍持有該 key 的鎖時才寫入，否則回 null
+export async function insertPhoto(db, p, lock) {
+  const cols = "review_id, r2_key, caption, width, height, bytes, created_at";
+  const vals = [p.review_id, p.key, p.caption, p.width, p.height, p.bytes, now()];
+  const row = lock
+    ? await db
+      .prepare(`INSERT INTO photos (${cols}) SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM blob_locks WHERE key = ? AND owner = ? AND expires_at > ?) RETURNING *`)
+      .bind(...vals, lock.key, lock.owner, Date.now())
+      .first()
+    : await db.prepare(`INSERT INTO photos (${cols}) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`).bind(...vals).first();
+  return row ? rowToPhoto(row) : null;
 }
 
 export async function getPhoto(db, id) {
@@ -258,9 +264,16 @@ export async function updatePhotoCaption(db, id, caption) {
   return getPhoto(db, id);
 }
 
+// 照片的 R2 檔改成共用（src/media.js）：刪紀錄時同一個交易登記待回收，之後確認沒有引用才刪檔
+const QUEUE_GC = "INSERT OR IGNORE INTO blob_gc (key, queued_at) SELECT DISTINCT r2_key, ? FROM photos WHERE r2_key NOT LIKE 'illust/%' AND ";
+
 export async function deletePhoto(db, id) {
   const photo = await getPhoto(db, id);
-  await db.prepare("DELETE FROM photos WHERE id = ?").bind(id).run();
+  const [, res] = await db.batch([
+    db.prepare(QUEUE_GC + "id = ?").bind(now(), id),
+    db.prepare("DELETE FROM photos WHERE id = ?").bind(id),
+  ]);
+  if (!res.meta.changes) throw new HttpError(404, "找不到這張照片，可能已被刪除");
   return photo.key;
 }
 
