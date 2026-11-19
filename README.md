@@ -154,6 +154,7 @@ scripts/
   build_pages.py  用 jerry-ui.py snippet 組頁面
   vendor.sh       複製 Leaflet 與 SimpleWebAuthn
   check.sh        靜態檢查
+  check_illustrations.py  插畫檔名只增不改不刪的檢查（規則見 AGENTS.md）
   smoke-api.sh    API 冒煙測試
   e2e.py          Playwright 端到端測試
   photo-gc-test.py  照片檔共用的鎖與回收情境測試

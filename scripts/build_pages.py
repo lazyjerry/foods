@@ -25,6 +25,7 @@ SHARE_FIELDS = [("title", "標題"), ("price", "價格"), ("date", "用餐日期
                 ("ratings", "評比"), ("body", "點評內容"), ("nickname", "稱呼")]
 
 # 編輯頁「選擇插畫」可選的圖（public/img/illustrations/），檔名與顯示名稱
+# 插畫檔名只增不改不刪，從這裡拿掉只會不再出現在對話框、檔案要留著（AGENTS.md〈插畫檔案〉）
 ILLUSTRATIONS = [("food-01.jpg", "牛肉麵"), ("food-02.jpg", "滷肉飯"), ("food-03.jpg", "小籠包"),
                  ("food-04.jpg", "珍珠奶茶"), ("food-05.jpg", "鹽酥雞"), ("meal-01.jpg", "火鍋"),
                  ("meal-02.jpg", "便當"), ("meal-03.jpg", "早餐"), ("meal-04.jpg", "刈包"), ("meal-05.jpg", "豆花"),
