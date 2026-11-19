@@ -143,6 +143,9 @@ with sync_playwright() as p:
     ok("儲存後自動加入一張插畫並上傳",
        page.locator(".app-photo-tile").count() == 1 and "已上傳" in page.text_content(".app-photo-tile .meta")
        and "已自動加入「大腸包小腸」" in page.text_content("#photo-status"), page.text_content("#photo-status"))
+    auto_id = page.url.split("id=")[1]
+    auto_key = page.evaluate(f"fetch('/api/reviews/{auto_id}').then(r => r.json())")["review"]["photos"][0]["key"]
+    ok("插畫引用站內原檔、不另存 R2", auto_key.startswith("illust/"), auto_key)
     page.once("dialog", lambda dlg: dlg.accept())
     page.click("#delete-btn")
     page.wait_for_url(BASE + "/")

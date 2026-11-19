@@ -423,13 +423,22 @@ illustSheet.addEventListener("click", async (e) => {
   await addIllustration(btn.dataset.illust);
 });
 
-// 回傳是否加入成功
+// 插畫不壓縮也不上傳檔案：儲存時只記檔名，後端直接引用站內原檔（不佔 R2）。回傳是否加入成功
 async function addIllustration(url) {
+  if (visiblePhotos().length >= MAX_PHOTOS) {
+    setStatus(photoStatus, `每筆點評最多 ${MAX_PHOTOS} 張照片`, "error");
+    return false;
+  }
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
     const blob = await res.blob();
-    await addFiles([new File([blob], url.split("/").pop(), { type: blob.type || "image/jpeg" })]);
+    const bmp = await createImageBitmap(blob);
+    const name = url.split("/").pop();
+    photos.push({ uid: ++uid, kind: "new", illust: name, blob, url: URL.createObjectURL(blob), width: bmp.width, height: bmp.height, bytes: blob.size, caption: "" });
+    bmp.close();
+    renderPhotos();
+    setStatus(photoStatus, "已加入插畫，按「儲存點評」後儲存（插畫直接引用站內原檔，不另外上傳）", "ok");
     return true;
   } catch {
     setStatus(photoStatus, "插畫載入失敗，請檢查網路後再試一次", "error");
@@ -463,13 +472,32 @@ function updateIllustHint() {
 
 for (const type of ["input", "click", "keyup"]) form.addEventListener(type, updateIllustHint);
 
+async function sha256Hex(blob) {
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// 照片檔共用（src/media.js）：插畫只送檔名；照片先送壓縮後的雜湊，R2 已有同一張就不再傳檔
+async function uploadNew(id, p) {
+  const path = (q) => `/api/reviews/${id}/photos?${q}`;
+  const q = new URLSearchParams({ w: p.width, h: p.height, caption: p.caption.trim() });
+  if (p.illust) {
+    q.set("illust", p.illust);
+    return api(path(q), { method: "POST" });
+  }
+  if (crypto.subtle) { // 非 HTTPS 環境沒有 crypto.subtle，直接上傳，後端一樣會比對雜湊
+    const probe = new URLSearchParams(q);
+    probe.set("sha256", await sha256Hex(p.blob));
+    const res = await api(path(probe), { method: "POST" });
+    if (!res.needUpload) return res;
+  }
+  return api(path(q), { method: "POST", body: p.blob, headers: { "Content-Type": "image/jpeg" } });
+}
+
 async function syncPhotos(id) {
   const tasks = [];
   for (const p of photos) {
-    if (p.kind === "new") tasks.push(["上傳", () => {
-      const q = new URLSearchParams({ w: p.width, h: p.height, caption: p.caption.trim() });
-      return api(`/api/reviews/${id}/photos?${q}`, { method: "POST", body: p.blob, headers: { "Content-Type": "image/jpeg" } });
-    }]);
+    if (p.kind === "new") tasks.push(["上傳", () => uploadNew(id, p)]);
     else if (p.removed) tasks.push(["刪除", () => api(`/api/photos/${p.id}`, { method: "DELETE" })]);
     else if (p.caption.trim() !== p.origCaption) tasks.push(["更新說明", () => api(`/api/photos/${p.id}`, { method: "PATCH", json: { caption: p.caption.trim() } })]);
   }

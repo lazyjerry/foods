@@ -111,7 +111,7 @@ r=$(req GET "/api/shares?limit=1&q=$q"); n=$(body "$r" | python3 -c 'import json
 [ "$n" = "1 True" ] && echo "通過：已分享的連結搜尋與分頁欄位" || { echo "失敗：已分享的連結搜尋（$n）"; fail=1; }
 r=$(req GET "/api/shares?cursor=bad"); check "已分享的連結壞游標" 400 "$(code "$r")"
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok"); check "公開分享免登入" 200 "$c"
-grep -q "r2_key\|photos/$id/" "$TMP/pub" && { echo "失敗：公開分享露出 key"; fail=1; } || echo "通過：公開分享不含 key"
+grep -q "r2_key\|photos/$id/\|blobs/" "$TMP/pub" && { echo "失敗：公開分享露出 key"; fail=1; } || echo "通過：公開分享不含 key"
 python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["reviews"][0]; sys.exit(0 if (r["lat"], r["lng"], r["address"]) == (25.033, 121.5654, "") else 1)' "$TMP/pub" && echo "通過：公開分享帶座標供導航（ADR 022）" || { echo "失敗：公開分享座標或空地址 $(cat "$TMP/pub")"; fail=1; }
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok/photos/$pid"); check "公開照片" 200 "$c"
 grep -q '"src":"data:image/jpeg;base64,' "$TMP/pub" && echo "通過：公開照片為 base64" || { echo "失敗：公開照片格式"; fail=1; }
@@ -121,8 +121,30 @@ c=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/public/shares/$tok"); chec
 r=$(req POST /api/shares -H "Content-Type: application/json" -d "{\"kind\":\"review\",\"review_id\":$id}"); check "建立單一點評分享" 201 "$(code "$r")"
 tok=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["share"]["token"])')
 
+# 照片檔共用（src/media.js）：同一張照片以雜湊引用、插畫引用站內原檔，沒有引用時才刪 R2 檔
+case "$key" in blobs/*) echo "通過：照片 key 用內容雜湊";; *) echo "失敗：照片 key 不是 blobs/ 雜湊（$key）"; fail=1;; esac
+r=$(req POST /api/reviews -H "Content-Type: application/json" -d '{"title":"冒煙測試共用照片","price":1,"lat":25.033,"lng":121.5654,"address":""}')
+check "建立第二筆點評" 201 "$(code "$r")"
+id2=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review"]["id"])')
+sha=$(python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$TMP/t.jpg")
+r=$(req POST "/api/reviews/$id2/photos?w=80&h=50&sha256=$sha"); check "同一張照片只送雜湊" 201 "$(code "$r")" "$(body "$r")"
+s=$(body "$r" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["photo"]["key"], d["reused"])')
+[ "$s" = "$key True" ] && echo "通過：重複照片引用同一個檔" || { echo "失敗：重複照片（$s）"; fail=1; }
+r=$(req POST "/api/reviews/$id2/photos?sha256=$(printf '0%.0s' $(seq 1 64))"); s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("needUpload"))')
+[ "$s" = "True" ] && echo "通過：R2 沒有的雜湊要求上傳" || { echo "失敗：未知雜湊（$(body "$r")）"; fail=1; }
+r=$(req POST "/api/reviews/$id2/photos?sha256=xyz"); check "雜湊格式錯誤" 400 "$(code "$r")"
+r=$(req POST "/api/reviews/$id2/photos?w=1200&h=1200&illust=food-01.jpg"); check "引用插畫" 201 "$(code "$r")" "$(body "$r")"
+ikey=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["photo"]["key"])')
+[ "$ikey" = "illust/food-01.jpg" ] && echo "通過：插畫 key 指向站內原檔" || { echo "失敗：插畫 key（$ikey）"; fail=1; }
+r=$(req GET "/media/$ikey"); check "讀取插畫照片" 200 "$(code "$r")"
+r=$(req POST "/api/reviews/$id2/photos?illust=..%2Fx.jpg"); check "插畫檔名不合格" 404 "$(code "$r")"
+r=$(req POST "/api/reviews/$id2/photos?illust=food-99.jpg"); check "不存在的插畫" 404 "$(code "$r")"
+
 r=$(req DELETE "/api/reviews/$id"); check "刪除點評" 200 "$(code "$r")"
-r=$(req GET "/media/$key"); check "刪除後照片也移除" 404 "$(code "$r")"
+r=$(req GET "/media/$key"); check "其他點評仍引用，照片檔保留" 200 "$(code "$r")"
+r=$(req DELETE "/api/reviews/$id2"); check "刪除第二筆點評" 200 "$(code "$r")"
+r=$(req GET "/media/$key"); check "沒有引用後照片檔才刪除" 404 "$(code "$r")"
+r=$(req GET "/media/$ikey"); check "插畫原檔不受刪除影響" 200 "$(code "$r")"
 r=$(req GET "/api/reviews/$id"); check "刪除後查無點評" 404 "$(code "$r")"
 c=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/public/shares/$tok"); check "刪除點評後分享失效" 404 "$c"
 

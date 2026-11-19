@@ -2,6 +2,7 @@
 // 公開 API 不回座標、R2 key；照片逐張轉成 base64 data URI 回傳，畫面上不出現圖片網址。
 import { HttpError, json, parseId, readJson } from "./http.js";
 import { getSettings, normalizeTag, parseTags, searchTerms } from "./db.js";
+import { readPhoto } from "./media.js";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_REVIEWS = 100;
@@ -165,8 +166,8 @@ export async function publicPhoto(env, token, photoId) {
     .bind(photoId, share.kind === "review" ? share.review_id : share.tag)
     .first();
   if (!photo) throw new HttpError(404, "找不到這張照片");
-  const obj = await env.PHOTOS.get(photo.r2_key);
-  if (!obj) throw new HttpError(404, "找不到這張照片");
-  const type = obj.httpMetadata?.contentType || "image/jpeg";
-  return json({ src: `data:${type};base64,${toBase64(await obj.arrayBuffer())}` }, 200, { "X-Robots-Tag": "noindex" });
+  const file = await readPhoto(env, photo.r2_key); // R2 照片或站內插畫
+  if (!file) throw new HttpError(404, "找不到這張照片");
+  const buf = await new Response(file.body).arrayBuffer();
+  return json({ src: `data:${file.type};base64,${toBase64(buf)}` }, 200, { "X-Robots-Tag": "noindex" });
 }

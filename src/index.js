@@ -4,6 +4,7 @@ import { account, changePassword, currentUser, isAuthed, login, logout } from ".
 import { HttpError, errorResponse, json, parseId, readJson } from "./http.js";
 import { geoReverse, geoSearch } from "./geo.js";
 import * as db from "./db.js";
+import * as media from "./media.js";
 import * as passkey from "./passkey.js";
 import * as shares from "./shares.js";
 import { storageUsage } from "./storage.js";
@@ -34,38 +35,62 @@ function safeFilename(title, id) {
 }
 
 async function serveMedia(request, env, key, url) {
-  const obj = await env.PHOTOS.get(key);
-  if (!obj) throw new HttpError(404, "找不到這張照片");
-  const headers = new Headers();
-  obj.writeHttpMetadata(headers);
-  headers.set("ETag", obj.httpEtag);
+  const file = await media.readPhoto(env, key);
+  if (!file) throw new HttpError(404, "找不到這張照片");
+  const headers = new Headers({ "Content-Type": file.type });
+  if (file.etag) headers.set("ETag", file.etag);
   headers.set("Cache-Control", "private, max-age=31536000, immutable");
   if (url.searchParams.has("download")) {
     const row = await db.photoByKey(env.DB, key);
     const name = safeFilename(row?.title, row?.id || "x");
     headers.set("Content-Disposition", `attachment; filename="photo-${row?.id || "x"}.jpg"; filename*=UTF-8''${encodeURIComponent(name)}`);
   }
-  return new Response(obj.body, { headers });
+  return new Response(file.body, { headers });
 }
 
+// 新增照片的三種請求（照片檔共用，見 src/media.js）：
+// - ?illust=<檔名>：引用站內插畫，不傳檔、不進 R2
+// - ?sha256=<雜湊>、不帶 body：問 R2 有沒有同一張；有就直接引用，沒有回 { needUpload: true }，前端再帶檔案重送
+// - body 是 JPEG：後端自己算雜湊當 key，R2 已有同一張就不再寫入
 async function uploadPhoto(request, env, reviewId, url) {
   if (!(await db.reviewExists(env.DB, reviewId))) throw new HttpError(404, "找不到這筆點評，請先儲存點評再上傳照片");
-  if ((request.headers.get("Content-Type") || "") !== "image/jpeg") throw new HttpError(415, "只接受壓縮後的 JPEG 照片");
-  const buf = await request.arrayBuffer();
-  if (buf.byteLength === 0) throw new HttpError(400, "照片是空的");
-  if (buf.byteLength > MAX_PHOTO_BYTES) throw new HttpError(413, "照片超過 3 MB，請調低設定頁的照片長邊或品質");
-  const head = new Uint8Array(buf, 0, 3);
-  if (head[0] !== 0xff || head[1] !== 0xd8 || head[2] !== 0xff) throw new HttpError(415, "檔案不是 JPEG");
   const width = Number(url.searchParams.get("w")) || null;
   const height = Number(url.searchParams.get("h")) || null;
   const caption = [...(url.searchParams.get("caption") || "").trim()].slice(0, 100).join("");
-  const key = `photos/${reviewId}/${crypto.randomUUID()}.jpg`;
-  await env.PHOTOS.put(key, buf, { httpMetadata: { contentType: "image/jpeg" } });
+  const illust = url.searchParams.get("illust");
+  const sha = url.searchParams.get("sha256");
+  let key;
+  let bytes;
+  let created = false; // 這次請求才寫進 R2 的檔，寫紀錄失敗時要收掉
+  if (illust) {
+    const info = await media.illustInfo(env, illust);
+    if (!info) throw new HttpError(404, "找不到這張插畫");
+    ({ key, bytes } = info);
+  } else if (sha) {
+    if (!/^[0-9a-f]{64}$/.test(sha)) throw new HttpError(400, "照片雜湊格式不正確");
+    key = media.blobKey(sha);
+    const head = await env.PHOTOS.head(key);
+    if (!head) return json({ needUpload: true });
+    bytes = head.size;
+  } else {
+    if ((request.headers.get("Content-Type") || "") !== "image/jpeg") throw new HttpError(415, "只接受壓縮後的 JPEG 照片");
+    const buf = await request.arrayBuffer();
+    if (buf.byteLength === 0) throw new HttpError(400, "照片是空的");
+    if (buf.byteLength > MAX_PHOTO_BYTES) throw new HttpError(413, "照片超過 3 MB，請調低設定頁的照片長邊或品質");
+    const head = new Uint8Array(buf, 0, 3);
+    if (head[0] !== 0xff || head[1] !== 0xd8 || head[2] !== 0xff) throw new HttpError(415, "檔案不是 JPEG");
+    key = media.blobKey(await media.sha256Hex(buf));
+    bytes = buf.byteLength;
+    if (!(await env.PHOTOS.head(key))) {
+      await env.PHOTOS.put(key, buf, { httpMetadata: { contentType: "image/jpeg" } });
+      created = true;
+    }
+  }
   try {
-    const photo = await db.insertPhoto(env.DB, { review_id: reviewId, key, caption, width, height, bytes: buf.byteLength });
-    return json({ photo }, 201);
+    const photo = await db.insertPhoto(env.DB, { review_id: reviewId, key, caption, width, height, bytes });
+    return json({ photo, reused: !created }, 201);
   } catch (err) {
-    await env.PHOTOS.delete(key); // 中繼資料寫不進去就不要留孤兒檔
+    if (created) await media.deleteUnreferenced(env, [key]); // 中繼資料寫不進去就不要留孤兒檔
     throw err;
   }
 }
@@ -106,7 +131,7 @@ async function api(request, env, ctx, url) {
     if (method === "PUT") return json({ review: await db.updateReview(env.DB, id, db.validateReview(await readJson(request))) });
     if (method === "DELETE") {
       const keys = await db.deleteReview(env.DB, id);
-      if (keys.length) await env.PHOTOS.delete(keys);
+      await media.deleteUnreferenced(env, keys); // 其他點評還引用的照片檔留著
       return json({ ok: true, deletedPhotos: keys.length });
     }
   }
@@ -121,7 +146,7 @@ async function api(request, env, ctx, url) {
     }
     if (method === "DELETE") {
       const key = await db.deletePhoto(env.DB, id);
-      await env.PHOTOS.delete(key);
+      await media.deleteUnreferenced(env, [key]); // 其他照片還引用同一個檔就留著
       return json({ ok: true });
     }
   }
@@ -170,7 +195,7 @@ export default {
 
       if (url.pathname.startsWith("/media/") && request.method === "GET") {
         const key = decodeURIComponent(url.pathname.slice("/media/".length));
-        if (!/^photos\/\d+\/[0-9a-f-]{36}\.jpg$/.test(key)) throw new HttpError(404, "找不到這張照片");
+        media.assertValidKey(key);
         return withSecurityHeaders(await serveMedia(request, env, key, url));
       }
       const res = await env.ASSETS.fetch(request);
