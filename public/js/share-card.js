@@ -2,7 +2,7 @@
 // 以及用 canvas 自己畫的連結卡片圖，不用截圖套件。
 // 資料一律走公開 API；封面照片是 data URI，canvas 不會被跨站圖片汙染而無法匯出。
 // 設定頁開著稱呼浮水印時，封面壓上和公開頁相同的浮水印，訪客不會經由卡片拿到沒有浮水印的照片。
-import { $, formatPrice, ratingSummary, setStatus, watermark } from "./common.js";
+import { $, formatPrice, ratingSummary, reviewShareText, setStatus, tagShareText, watermark } from "./common.js";
 
 // 卡片是要傳出去的圖：固定用 Jerry UI 淺色配色，不跟著深色模式
 const C = { paper: "#f5f3ed", grid: "rgba(23, 30, 52, 0.055)", card: "#fffefa", ink: "#171e34", ink2: "#555a6d", muted: "#707486", coral: "#ed735f", white: "#fff" };
@@ -24,7 +24,7 @@ const save = $("#share-card-save");
 const imageBtn = $("#share-card-image");
 const linkBtn = $("#share-card-link");
 const status = $("#share-card-status");
-let current = { url: "", title: "", file: null, objectUrl: "" };
+let current = { url: "", title: "", text: "", file: null, objectUrl: "" };
 let seq = 0; // 連續開不同連結時，只採用最後一次的結果
 
 const sans = () => getComputedStyle(document.body).fontFamily;
@@ -354,7 +354,7 @@ export async function openShareCard(token, data = null) {
   if (!dialog || typeof dialog.showModal !== "function") return;
   const id = ++seq;
   if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
-  current = { url: `${location.origin}/s/${token}`, title: "", file: null, objectUrl: "" };
+  current = { url: `${location.origin}/s/${token}`, title: "", text: "", file: null, objectUrl: "" };
   urlInput.value = current.url;
   linkBtn.hidden = !navigator.share;
   save.hidden = true;
@@ -368,6 +368,7 @@ export async function openShareCard(token, data = null) {
     const blob = await drawCard(c, await loadCover(token, d));
     if (id !== seq) return;
     current.title = c.title;
+    current.text = shareText(d);
     current.file = new File([blob], fileName(c.title), { type: "image/jpeg" });
     current.objectUrl = URL.createObjectURL(blob);
     const img = new Image();
@@ -381,6 +382,14 @@ export async function openShareCard(token, data = null) {
   } catch (err) {
     if (id === seq) preview.replaceChildren(note(`無法產生分享卡片：${err.message}`));
   }
+}
+
+// 系統分享附上的文字：內容與公開頁一致（公開頁固定顯示全部欄位，不受分享圖的欄位開關影響）
+function shareText(data) {
+  const by = data.nickname ? `${data.nickname} 分享的` : "";
+  const rs = data.reviews || [];
+  if (data.share.kind === "tag") return tagShareText(data.share.tag, rs, { by: by && `${by}分類` });
+  return rs[0] ? reviewShareText(rs[0], { by: by && `${by}點評` }) : "";
 }
 
 // 使用者取消系統分享會丟 AbortError，不當成錯誤
@@ -404,6 +413,7 @@ if (dialog) {
     setStatus(status, "已複製網址", "ok");
   });
   urlInput.addEventListener("focus", () => urlInput.select());
-  linkBtn.addEventListener("click", () => nativeShare({ title: current.title || document.title, url: current.url }));
-  imageBtn.addEventListener("click", () => current.file && nativeShare({ files: [current.file], title: current.title }));
+  // 文字是卡片產生完才有；還在產生時先只分享網址
+  linkBtn.addEventListener("click", () => nativeShare({ title: current.title || document.title, ...(current.text && { text: current.text }), url: current.url }));
+  imageBtn.addEventListener("click", () => current.file && nativeShare({ files: [current.file], title: current.title, text: [current.text, current.url].filter(Boolean).join("\n") }));
 }

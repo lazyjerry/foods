@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS = {
 
 // GA4 評估 ID（ADR 028）：只用在公開分享頁，格式不對一律存空字串，避免把任意字串帶進頁面的 script 網址
 export const GA_ID_RE = /^G-[A-Z0-9]{4,20}$/;
+// 單行文字欄位（餐廳、餐點、地址、照片說明）的字數上限，前端 maxlength 與計數同一個數字
+export const TEXT_MAX = 256;
 
 const now = () => new Date().toISOString();
 const chars = (s) => [...s].length;
@@ -33,9 +35,9 @@ export function validateReview(input) {
   const errors = {};
   const title = typeof input?.title === "string" ? input.title.trim() : "";
   if (!title) errors.title = "請輸入餐廳";
-  else if (chars(title) > 100) errors.title = "餐廳最多 100 字";
+  else if (chars(title) > TEXT_MAX) errors.title = `餐廳最多 ${TEXT_MAX} 字`;
   const meal = typeof input?.meal === "string" ? input.meal.trim() : ""; // 餐點，選填
-  if (chars(meal) > 100) errors.meal = "餐點最多 100 字";
+  if (chars(meal) > TEXT_MAX) errors.meal = `餐點最多 ${TEXT_MAX} 字`;
 
   const price = num(input?.price);
   if (!Number.isInteger(price) || price < 0 || price > 1_000_000) errors.price = "請輸入 0 到 1,000,000 的整數價格";
@@ -49,7 +51,7 @@ export function validateReview(input) {
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) errors.lng = "經度要在 -180 到 180 之間";
 
   const address = typeof input?.address === "string" ? input.address.trim() : "";
-  if (chars(address) > 300) errors.address = "地址最多 300 字"; // 地址選填，空字串照存（欄位 NOT NULL）
+  if (chars(address) > TEXT_MAX) errors.address = `地址最多 ${TEXT_MAX} 字`; // 地址選填，空字串照存（欄位 NOT NULL）
 
   let visitedOn = null;
   if (input?.visited_on) {

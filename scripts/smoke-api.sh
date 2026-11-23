@@ -43,12 +43,12 @@ check "建立點評" 201 "$(code "$r")" "$(body "$r")"
 id=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review"]["id"])')
 ratings=$(body "$r" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["review"]["ratings"], sort_keys=True))')
 [ "$ratings" = '{"price": 4, "taste": 5}' ] && echo "通過：評比白名單過濾" || { echo "失敗：評比白名單 $ratings"; fail=1; }
-# 餐點（選填，100 字內，去前後空白，可搜尋）
+# 餐點（選填，256 字內，去前後空白，可搜尋）
 m=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review"]["meal"])')
 [ "$m" = "冒煙紅燒牛肉麵" ] && echo "通過：餐點去前後空白後存入" || { echo "失敗：餐點（$m）"; fail=1; }
-long_meal=$(python3 -c 'print("麵"*101)')
+long_meal=$(python3 -c 'print("麵"*257)')
 r=$(req POST /api/reviews -H "Content-Type: application/json" -d "{\"title\":\"t\",\"price\":1,\"lat\":1,\"lng\":1,\"address\":\"\",\"meal\":\"$long_meal\"}")
-check "餐點超過 100 字回 422" 422 "$(code "$r")"
+check "餐點超過 256 字回 422" 422 "$(code "$r")"
 q=$(python3 -c 'import urllib.parse; print(urllib.parse.quote("冒煙紅燒"))')
 r=$(req GET "/api/reviews?q=$q"); n=$(body "$r" | python3 -c 'import json,sys; print(sum(i["id"]=='"$id"' for i in json.load(sys.stdin)["items"]))')
 [ "$n" = "1" ] && echo "通過：可用餐點搜尋" || { echo "失敗：餐點搜尋（$n）"; fail=1; }

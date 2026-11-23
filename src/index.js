@@ -59,7 +59,7 @@ async function uploadPhoto(request, env, reviewId, url) {
     review_id: reviewId,
     width: Number(url.searchParams.get("w")) || null,
     height: Number(url.searchParams.get("h")) || null,
-    caption: [...(url.searchParams.get("caption") || "").trim()].slice(0, 100).join(""),
+    caption: [...(url.searchParams.get("caption") || "").trim()].slice(0, db.TEXT_MAX).join(""),
   };
   const illust = url.searchParams.get("illust");
   const sha = url.searchParams.get("sha256");
@@ -155,7 +155,7 @@ async function api(request, env, ctx, url) {
     const id = parseId(m[1]);
     if (method === "PATCH") {
       const body = await readJson(request);
-      const caption = [...String(body?.caption ?? "").trim()].slice(0, 100).join("");
+      const caption = [...String(body?.caption ?? "").trim()].slice(0, db.TEXT_MAX).join("");
       return json({ photo: await db.updatePhotoCaption(env.DB, id, caption) });
     }
     if (method === "DELETE") {

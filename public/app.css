@@ -207,6 +207,14 @@
 @media (prefers-reduced-motion: reduce) {
   .app-toast { transform: none; transition-duration: 0s; }
 }
+/* 底部帶連結的 toast（common.js 的 actionToast）：可點，置中貼底；收起時 visibility 等淡出結束才隱藏，不留在 Tab 順序裡 */
+.app-toast.is-bottom { top: auto; right: var(--space-4); bottom: max(var(--space-4), env(safe-area-inset-bottom)); left: var(--space-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); width: fit-content; max-width: min(480px, calc(100vw - 2 * var(--space-4))); margin: 0 auto; pointer-events: auto; visibility: hidden; transform: translateY(8px); transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s; }
+.app-toast.is-bottom.is-shown { visibility: visible; transform: none; transition-delay: 0s; }
+.app-toast.is-bottom .app-toast-text { margin: 0; }
+.app-toast-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@media (prefers-reduced-motion: reduce) {
+  .app-toast.is-bottom { transform: none; transition-duration: 0s; }
+}
 
 /* 設定頁右下角浮動儲存鈕（build_pages.py 產生、settings.js 控制 disabled）：有未存變更時珊瑚色實心＋硬陰影，沒有時退成卡片底、不可按 */
 .app-fab { position: fixed; right: max(var(--space-5), env(safe-area-inset-right)); bottom: max(var(--space-5), env(safe-area-inset-bottom)); z-index: 900; display: grid; place-items: center; width: 80px; height: 80px; padding: 0; color: var(--ink); background: var(--coral); border: var(--line); border-radius: 50%; box-shadow: var(--shadow); font-family: inherit; font-size: var(--fs-lg); font-weight: var(--fw-black); line-height: 1; letter-spacing: 0.1em; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease; }

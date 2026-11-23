@@ -1,6 +1,6 @@
 // 分享圖：勾選欄位，把點評畫成浮水印合成在照片上（點評照片、相簿、現場拍照或純文字）。
 // 全部在瀏覽器的 canvas 完成；相簿與拍照的圖不上傳。
-import { $, NO_ADDRESS, RATING_DEFS, SHARE_FIELDS, api, autoLoadMore, bindLogout, esc, formatPrice, loadSettings, mediaUrl, setStatus } from "./common.js";
+import { $, NO_ADDRESS, RATING_DEFS, SHARE_FIELDS, api, autoLoadMore, bindLogout, esc, formatPrice, loadSettings, mediaUrl, reviewShareText, setStatus, tagShareText } from "./common.js";
 import { loadImage } from "./photo.js";
 import { openShareCard } from "./share-card.js";
 import { combo } from "./combo.js";
@@ -19,6 +19,7 @@ let review = null;
 let base = null; // 底圖 canvas；null 代表純文字
 let wantPhoto = Number(params.get("photo")) || null;
 let listItems = []; // 分享圖與分享網頁共用的點評清單
+let listComplete = false; // 清單是否已含全部點評；分享分類時才能寫出總筆數
 
 const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const source = () => document.querySelector('input[name="source"]:checked')?.value || "review";
@@ -261,6 +262,7 @@ async function loadList() {
   const data = await api("/api/reviews?limit=100");
   const items = data.items;
   listItems = items;
+  listComplete = !data.hasMore;
   const want = Number(params.get("id"));
   if (want && !items.some((r) => r.id === want)) {
     try {
@@ -317,7 +319,10 @@ $("#share-btn").addEventListener("click", async () => {
       setStatus(outStatus, "這個瀏覽器不支援直接分享圖片，請按「下載圖片」後再分享", "error");
       return;
     }
-    await navigator.share({ files: [file], title: review.title });
+    // 文字沿用分享圖的欄位開關，圖上關掉的欄位文字也不帶
+    const sel = fields();
+    const by = sel.nickname && settings.nickname ? `${settings.nickname} 的點評` : "";
+    await navigator.share({ files: [file], title: review.title, text: reviewShareText(review, { by, show: sel }) });
     setStatus(outStatus, "已開啟分享", "ok");
   } catch (err) {
     if (err.name !== "AbortError") setStatus(outStatus, err.message, "error");
@@ -347,6 +352,18 @@ async function copyText(text) {
   } catch {
     return false;
   }
+}
+
+// 分享網頁時附上的文字：用已載入的點評清單組成，不另外打 API（系統分享要在點擊後盡快呼叫）。
+// 內容比照公開頁，固定放全部欄位；清單不完整時分類只列店名、不寫總筆數。
+function webShareText(json) {
+  const by = settings.nickname ? `${settings.nickname} 分享的` : "";
+  if (json.kind === "tag") {
+    const rs = listItems.filter((r) => r.tags?.includes(json.tag));
+    return tagShareText(json.tag, rs, { by: by && `${by}分類`, total: listComplete ? rs.length : 0 });
+  }
+  const r = listItems.find((x) => x.id === json.review_id);
+  return r ? reviewShareText(r, { by: by && `${by}點評` }) : "";
 }
 
 function shareItem(s) {
@@ -447,7 +464,7 @@ $("#web-create-btn").addEventListener("click", async () => {
     setStatus(webStatus, `${copied ? "已複製連結" : "已建立連結"}：${url}`, "ok");
     await loadShares();
     if (navigator.share && matchMedia("(pointer: coarse)").matches) {
-      navigator.share({ title: share.title, url }).catch(() => {});
+      navigator.share({ title: share.title, text: webShareText(json), url }).catch(() => {});
     }
   } catch (err) {
     setStatus(webStatus, err.message, "error");

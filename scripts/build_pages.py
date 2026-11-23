@@ -215,10 +215,14 @@ def map_view():
     ])
 
 
+# 單行文字欄位的字數上限，與 src/db.js 的 TEXT_MAX 相同；edit.js 依 maxlength 更新提示裡的計數
+TEXT_MAX = 256
+
+
 def build_edit():
-    title = attr(sn("F2", id="title", label="餐廳", required=True, placeholder="例如：老張牛肉麵"), 'id="title"', 'maxlength="100" autocomplete="off"')
+    title = attr(sn("F2", id="title", label="餐廳", required=True, placeholder="例如：老張牛肉麵", hint=f"0／{TEXT_MAX} 字"), 'id="title"', f'maxlength="{TEXT_MAX}" autocomplete="off"')
     # 餐點（ADR：docs/afk-skill/adr/001）：選填，放在餐廳下方
-    meal = attr(sn("F2", id="meal", label="餐點", placeholder="例如：紅燒牛肉麵、燙青菜"), 'id="meal"', 'maxlength="100" autocomplete="off"')
+    meal = attr(sn("F2", id="meal", label="餐點", placeholder="例如：紅燒牛肉麵、燙青菜", hint=f"0／{TEXT_MAX} 字"), 'id="meal"', f'maxlength="{TEXT_MAX}" autocomplete="off"')
     price = attr(sn("F2", id="price", label="價格", type="number", inputmode="numeric", num="num", required=True, hint="新台幣，整數"),
                  'id="price"', 'min="0" max="1000000" step="1"')
     visited = sn("F2", id="visited-on", label="用餐日期", type="date", num="num app-date")
@@ -228,11 +232,11 @@ def build_edit():
     lat = attr(sn("F2", id="lat", label="緯度", type="number", num="num", required=True), 'id="lat"', 'min="-90" max="90" step="any"')
     lng = attr(sn("F2", id="lng", label="經度", type="number", num="num", required=True), 'id="lng"', 'min="-180" max="180" step="any"')
     addr_f3 = sn("F3", id="address", placeholder="例如：台北市大安區忠孝東路四段 1 號", button="查座標", button_label="以地址查座標")
-    addr_f3 = attr(addr_f3.replace('<button type="button"', '<button type="button" id="geocode-btn"', 1), 'id="address"', 'maxlength="300"')
+    addr_f3 = attr(addr_f3.replace('<button type="button"', '<button type="button" id="geocode-btn"', 1), 'id="address"', f'maxlength="{TEXT_MAX}"')
     location = stack(
         '<div class="app-map" id="map" role="application" aria-label="地圖：點選或拖曳標記設定位置"></div>',
         sn("F2:row", fields=lat + lng),
-        sn("F2:control", id="address", label="地址", control=addr_f3, hint="按「查座標」依地址移動標記；移動標記會自動帶入地址"),
+        sn("F2:control", id="address", label="地址", control=addr_f3, hint=f"0／{TEXT_MAX} 字 · 按「查座標」依地址移動標記；移動標記會自動帶入地址"),
         '<div class="app-geo-results" id="geo-results" aria-live="polite"></div>',
         sn("A2", buttons=sn("A1", variant="secondary", id="locate-btn", text="使用目前位置") + sn("A1", variant="secondary", id="reverse-btn", text="用座標查地址")),
         sn("F10", id="geo-status", role="status"),

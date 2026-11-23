@@ -50,11 +50,13 @@
 </div>
 <div class="stack"><div class="field">
   <label for="title">餐廳</label>
-  <input id="title" maxlength="100" autocomplete="off" type="text" placeholder="例如：老張牛肉麵" required>
+  <input id="title" maxlength="256" autocomplete="off" type="text" placeholder="例如：老張牛肉麵" aria-describedby="title-hint" required>
+  <p class="hint" id="title-hint">0／256 字</p>
 </div>
 <div class="field">
   <label for="meal">餐點</label>
-  <input id="meal" maxlength="100" autocomplete="off" type="text" placeholder="例如：紅燒牛肉麵、燙青菜">
+  <input id="meal" maxlength="256" autocomplete="off" type="text" placeholder="例如：紅燒牛肉麵、燙青菜" aria-describedby="meal-hint">
+  <p class="hint" id="meal-hint">0／256 字</p>
 </div>
 <div class="field-row"><div class="field">
   <label for="price">價格</label>
@@ -93,10 +95,10 @@
 <div class="field">
   <label for="address">地址</label>
   <div class="input-group">
-  <input id="address" maxlength="300" type="text" placeholder="例如：台北市大安區忠孝東路四段 1 號" autocomplete="off" spellcheck="false">
+  <input id="address" maxlength="256" type="text" placeholder="例如：台北市大安區忠孝東路四段 1 號" autocomplete="off" spellcheck="false">
   <button type="button" id="geocode-btn" aria-label="以地址查座標">查座標</button>
 </div>
-  <p class="hint">按「查座標」依地址移動標記；移動標記會自動帶入地址</p>
+  <p class="hint">0／256 字 · 按「查座標」依地址移動標記；移動標記會自動帶入地址</p>
 </div>
 <div class="app-geo-results" id="geo-results" aria-live="polite"></div>
 <div class="actions"><button class="btn secondary" type="button" id="locate-btn">使用目前位置</button><button class="btn secondary" type="button" id="reverse-btn">用座標查地址</button></div>

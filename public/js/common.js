@@ -89,6 +89,37 @@ export function ratingSummary(ratings) {
   return RATING_DEFS.filter(([k]) => ratings?.[k]).map(([k, label]) => `${label} ${hearts(ratings[k])}`);
 }
 
+// 系統分享（navigator.share）附上的文字：網址另由 url 帶，這裡不放。
+// show 是要放進文字的欄位（SHARE_FIELDS 的 key）；分享圖沿用頁面上的欄位開關，文字不會帶出圖上關掉的資訊。沒給就全放。
+const SHARE_EXCERPT = 120; // 點評內容最多帶幾個字
+const SHARE_LIST = 5; // 分類最多列幾筆
+const excerpt = (s, n) => {
+  const t = [...String(s || "").replace(/\s+/g, " ").trim()];
+  return t.length > n ? t.slice(0, n).join("") + "…" : t.join("");
+};
+const dishName = (r) => (r.meal ? `${r.title}・${r.meal}` : r.title);
+
+export function reviewShareText(r, { by = "", show = {} } = {}) {
+  const on = (k) => show[k] !== false;
+  const name = [on("title") && r.title, on("meal") && r.meal].filter(Boolean).join("・");
+  return [
+    [by, name].filter(Boolean).join("："),
+    [on("price") && formatPrice(r.price), on("date") && r.visited_on].filter(Boolean).join(" · "),
+    on("address") && r.address ? `地址：${r.address}` : "",
+    on("ratings") ? ratingSummary(r.ratings).join(" · ") : "",
+    on("body") ? excerpt(r.body, SHARE_EXCERPT) : "",
+    r.tags?.length ? r.tags.map((t) => `#${t}`).join(" ") : "",
+  ].filter(Boolean).join("\n");
+}
+
+// total 是分類的點評總數；不確定時給 0，只列店名、不寫筆數
+export function tagShareText(tag, reviews, { by = "", total = reviews.length } = {}) {
+  const lines = [`${by ? `${by}：` : ""}#${tag}${total ? `，共 ${total} 筆點評` : ""}`];
+  for (const r of reviews.slice(0, SHARE_LIST)) lines.push(`・${dishName(r)}　${formatPrice(r.price)}`);
+  if (total > SHARE_LIST) lines.push(`…還有 ${total - SHARE_LIST} 筆`);
+  return lines.join("\n");
+}
+
 export function mediaUrl(key, download = false) {
   return "/media/" + key.split("/").map(encodeURIComponent).join("/") + (download ? "?download=1" : "");
 }
@@ -160,6 +191,32 @@ export function toast(text, ms = 2500) {
   clearTimeout(toastTimer);
   requestAnimationFrame(() => toastEl.classList.add("is-shown"));
   toastTimer = setTimeout(() => toastEl.classList.remove("is-shown"), ms);
+}
+
+// 底部帶連結的 toast（樣式見 app.css 的 .app-toast.is-bottom）：編輯頁存檔後放「返回列表」，預設停留 1 分鐘。
+// 裡面有可操作的連結與「關閉」，所以不設 aria-hidden；收起時用 visibility 隱藏，不會留在 Tab 順序裡。
+// 同一時間只留一個，再呼叫就換內容並重新計時。
+let barEl = null;
+let barTimer = 0;
+export function hideActionToast() {
+  clearTimeout(barTimer);
+  barEl?.classList.remove("is-shown");
+}
+export function actionToast(text, { href, label, ms = 60_000 }) {
+  if (!barEl) {
+    barEl = document.createElement("div");
+    barEl.className = "app-toast is-bottom";
+    barEl.innerHTML = '<p class="app-toast-text"></p><div class="app-toast-actions"><a class="btn is-sm"></a><button class="btn is-sm secondary" type="button">關閉</button></div>';
+    barEl.querySelector("button").addEventListener("click", hideActionToast);
+    document.body.append(barEl);
+  }
+  barEl.querySelector(".app-toast-text").textContent = text;
+  const link = barEl.querySelector("a");
+  link.href = href;
+  link.textContent = label;
+  clearTimeout(barTimer);
+  requestAnimationFrame(() => barEl.classList.add("is-shown"));
+  barTimer = setTimeout(hideActionToast, ms);
 }
 
 // 照片燒進稱呼的半透明斜向浮水印：直接畫進圖片，另存或截圖都帶著浮水印。沒設稱呼時用品牌名。

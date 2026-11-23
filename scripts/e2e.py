@@ -91,12 +91,18 @@ with sync_playwright() as p:
     page.fill("#price", "260")
     page.fill("#body", "叉燒很厚，湯偏鹹。")
     ok("字數計數", page.text_content("#body-hint") == "9／2000 字", page.text_content("#body-hint"))
+    ok("餐廳、餐點限 256 字並顯示計數",
+       page.get_attribute("#title", "maxlength") == "256" and page.text_content("#title-hint") == "8／256 字"
+       and page.get_attribute("#meal", "maxlength") == "256" and page.text_content("#meal-hint") == "7／256 字",
+       [page.text_content("#title-hint"), page.text_content("#meal-hint")])
 
     page.fill("#address", "市府路")
     page.click("#geocode-btn")
     page.wait_for_selector(".app-geo-option")
     page.locator(".app-geo-option").first.click()
     ok("地址查座標並套用", abs(float(page.input_value("#lat")) - 25.0418) < 1e-4 and page.input_value("#address") == "台北市信義區市府路1號")
+    addr_hint = page.text_content('.field:has(#address) .hint')
+    ok("地址限 256 字，帶入後更新計數", page.get_attribute("#address", "maxlength") == "256" and addr_hint.startswith("11／256 字 · "), addr_hint)
 
     ok("評比預設關閉", page.is_hidden("#ratings"))
     page.click("label.switch:has(#ratings-on)")
@@ -112,10 +118,22 @@ with sync_playwright() as p:
     meta = page.text_content(".app-photo-tile .meta")
     ok("照片壓縮到長邊 1600", "1600×1067" in meta, meta)
     page.fill(".app-photo-tile input", "招牌叉燒")
+    ok("照片說明限 256 字並顯示計數",
+       page.get_attribute(".app-photo-tile input", "maxlength") == "256" and page.text_content(".app-photo-tile .hint") == "4／256 字",
+       page.text_content(".app-photo-tile .hint"))
     shot(page, "edit")
     page.click("#save-btn")
     page.wait_for_function("document.querySelector('#save-status').textContent === '已儲存'", timeout=20000)
     ok("儲存點評與上傳照片", "已上傳" in page.text_content(".app-photo-tile .meta") and "id=" in page.url, page.text_content("#save-status"))
+    page.wait_for_selector(".app-toast.is-bottom.is-shown")
+    ok("儲存後底部跳出返回列表 toast",
+       page.text_content(".app-toast.is-bottom .app-toast-text") == "已儲存點評"
+       and page.get_attribute(".app-toast.is-bottom a", "href") == "/"
+       and page.evaluate("(() => { const r = document.querySelector('.app-toast.is-bottom').getBoundingClientRect(); return innerHeight - r.bottom < 40; })()"))
+    shot(page, "edit-saved-toast")
+    page.click(".app-toast.is-bottom button")
+    page.wait_for_function("getComputedStyle(document.querySelector('.app-toast.is-bottom')).visibility === 'hidden'")
+    ok("按關閉收起 toast", True)
     rid = page.url.split("id=")[1]
 
     data = page.evaluate(f"fetch('/api/reviews/{rid}').then(r => r.json())")["review"]

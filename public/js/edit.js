@@ -1,5 +1,5 @@
 // 新增／編輯點評：基本欄位、地圖與地址互轉、選用評比、照片壓縮上傳。
-import { $, RATING_DEFS, api, bindLogout, charCount, esc, formatBytes, loadSettings, mediaUrl, setStatus, today } from "./common.js";
+import { $, RATING_DEFS, actionToast, api, bindLogout, charCount, esc, formatBytes, hideActionToast, loadSettings, mediaUrl, setStatus, today } from "./common.js";
 import { createMap } from "./map.js";
 import { compressImage } from "./photo.js";
 import { tagSuggest } from "./tag-suggest.js";
@@ -14,6 +14,12 @@ const f = {
 const geoStatus = $("#geo-status");
 const photoStatus = $("#photo-status");
 const saveStatus = $("#save-status");
+// 單行文字欄位的字數上限取自 maxlength（build_pages.py 的 TEXT_MAX，與後端 src/db.js 相同）；
+// 提示開頭的「n／256 字」跟著輸入更新，地址的提示後面還接著操作說明
+const TEXT_MAX = f.title.maxLength;
+const countText = (s) => `${charCount(s)}／${TEXT_MAX} 字`;
+const clip = (s) => [...String(s || "")].slice(0, TEXT_MAX).join("");
+const COUNTED = [[f.title, $("#title-hint")], [f.meal, $("#meal-hint")], [f.address, f.address.closest(".field").querySelector(".hint")]];
 const ratingsOn = $("#ratings-on");
 const ratingsBox = $("#ratings");
 const grid = $("#photo-grid");
@@ -62,6 +68,7 @@ function unlockScreen() {
 function updateCount() {
   const n = charCount(f.body.value);
   $("#body-hint").textContent = `${n}／2000 字`;
+  for (const [el, hint] of COUNTED) hint.textContent = hint.textContent.replace(/^\d+／\d+ 字/, countText(el.value));
 }
 
 function markInvalid(input, on) {
@@ -90,6 +97,9 @@ function showFieldErrors(fields) {
 function validate() {
   const errors = {};
   if (!f.title.value.trim()) errors.title = "請輸入餐廳";
+  else if (charCount(f.title.value.trim()) > TEXT_MAX) errors.title = `餐廳最多 ${TEXT_MAX} 字`;
+  if (charCount(f.meal.value.trim()) > TEXT_MAX) errors.meal = `餐點最多 ${TEXT_MAX} 字`;
+  if (charCount(f.address.value.trim()) > TEXT_MAX) errors.address = `地址最多 ${TEXT_MAX} 字`;
   const price = Number(f.price.value);
   if (f.price.value === "" || !Number.isInteger(price) || price < 0 || price > 1_000_000) errors.price = "請輸入 0 到 1,000,000 的整數價格";
   if (charCount(f.body.value) > 2000) errors.body = "點評最多 2000 字";
@@ -228,8 +238,9 @@ async function reverseLookup() {
   try {
     const data = await api(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
     if (seq !== reverseSeq) return;
-    f.address.value = data.address;
+    f.address.value = clip(data.address);
     markInvalid(f.address, false);
+    updateCount();
     setStatus(geoStatus, "已依座標帶入地址，可再手動修改", "ok");
   } catch (err) {
     if (seq === reverseSeq) setStatus(geoStatus, err.message, "error");
@@ -243,7 +254,8 @@ function scheduleReverse() {
 
 function applyResult(r) {
   setCoords(r.lat, r.lng, { zoom: 17 });
-  f.address.value = r.address || f.address.value;
+  f.address.value = clip(r.address) || f.address.value;
+  updateCount();
   results.innerHTML = "";
   setStatus(geoStatus, "已依地址移動標記，可再拖曳微調", "ok");
 }
@@ -343,7 +355,7 @@ function renderPhotos() {
       return `<div class="app-photo-tile" data-uid="${p.uid}">
   <img src="${src}" alt="${esc(p.caption || "點評照片")}" width="${p.width || ""}" height="${p.height || ""}" loading="lazy">
   <div class="app-photo-meta">
-    <div class="field"><label for="cap-${p.uid}">照片說明</label><input id="cap-${p.uid}" type="text" maxlength="100" value="${esc(p.caption)}" data-caption="${p.uid}"></div>
+    <div class="field"><label for="cap-${p.uid}">照片說明</label><input id="cap-${p.uid}" type="text" maxlength="${TEXT_MAX}" value="${esc(p.caption)}" data-caption="${p.uid}" aria-describedby="cap-${p.uid}-hint"><p class="hint" id="cap-${p.uid}-hint">${countText(p.caption)}</p></div>
     <p class="meta">${formatBytes(p.bytes)} · ${p.width}×${p.height} · ${state}</p>
     <button class="btn is-sm secondary" type="button" data-remove="${p.uid}">移除</button>
   </div>
@@ -357,6 +369,7 @@ grid.addEventListener("input", (e) => {
   if (!id) return;
   const p = photos.find((x) => x.uid === Number(id));
   if (p) p.caption = e.target.value;
+  $(`#cap-${id}-hint`).textContent = countText(e.target.value);
 });
 grid.addEventListener("click", (e) => {
   const id = e.target.dataset.remove;
@@ -547,6 +560,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (saving) return;
   clearInvalid();
+  hideActionToast(); // 重新儲存時先收起上一次的 toast，存完再跳新的
   const errors = validate();
   if (Object.keys(errors).length) {
     setStatus(saveStatus, showFieldErrors(errors), "error");
@@ -580,6 +594,7 @@ form.addEventListener("submit", async (e) => {
     if (photoErrors.length) setStatus(saveStatus, `點評已儲存，但有 ${photoErrors.length} 項照片處理失敗：${photoErrors[0]}`, "error");
     else setStatus(saveStatus, "已儲存", "ok");
     if (autoAdded) setStatus(photoStatus, `沒有照片，已自動加入「${auto.label}」插畫`, "ok");
+    actionToast(photoErrors.length ? "點評已儲存，部分照片處理失敗" : "已儲存點評", { href: "/", label: "返回列表" });
   } catch (err) {
     setStatus(saveStatus, showFieldErrors(err.fields) || err.message, "error");
   } finally {
@@ -601,6 +616,7 @@ $("#delete-btn").addEventListener("click", async () => {
 
 for (const el of Object.values(f)) el.addEventListener("input", () => markInvalid(el, false));
 f.body.addEventListener("input", updateCount);
+for (const [el] of COUNTED) el.addEventListener("input", updateCount);
 window.addEventListener("beforeunload", (e) => {
   if (photos.some((p) => p.kind === "new")) e.preventDefault();
 });
