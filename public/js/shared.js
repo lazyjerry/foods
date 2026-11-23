@@ -37,7 +37,7 @@ function photoBlock(r) {
 }
 
 function item(r, kind) {
-  const meta = [formatPrice(r.price), r.visited_on, kind === "tag" && r.photo_count > 1 ? `${r.photo_count} 張照片` : ""].filter(Boolean).join(" · ");
+  const meta = [r.meal, formatPrice(r.price), r.visited_on, kind === "tag" && r.photo_count > 1 ? `${r.photo_count} 張照片` : ""].filter(Boolean).join(" · ");
   const rating = ratingSummary(r.ratings);
   return `<article class="app-review app-shared-review"><div class="app-review-body">
   <h3>${esc(r.title)}</h3>

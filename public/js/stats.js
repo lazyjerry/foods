@@ -25,7 +25,7 @@ function daysAgo(n) {
 
 // 一筆點評的一列：名次或格位、店名、日期與價格、分數、「修改」直接進編輯頁
 function rankItem(it, no, score) {
-  const meta = [it.date, formatPrice(it.price), ...(it.tags || []).slice(0, 3).map((t) => `#${t}`)].join(" · ");
+  const meta = [it.meal, it.date, formatPrice(it.price), ...(it.tags || []).slice(0, 3).map((t) => `#${t}`)].filter(Boolean).join(" · ");
   return `<li class="app-rank-item">
   <span class="app-rank-no" aria-hidden="true">${no}</span>
   <div class="app-rank-body"><a class="app-rank-title" href="${editUrl(it.id)}">${esc(it.title)}</a><p class="meta app-rank-meta">${esc(meta)}</p></div>

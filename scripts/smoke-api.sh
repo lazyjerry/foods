@@ -38,11 +38,20 @@ long=$(python3 -c 'print("好"*2001)')
 r=$(req POST /api/reviews -H "Content-Type: application/json" -d "{\"title\":\"t\",\"price\":1,\"body\":\"$long\",\"lat\":1,\"lng\":1,\"address\":\"a\"}")
 check "點評超過 2000 字回 422" 422 "$(code "$r")"
 
-r=$(req POST /api/reviews -H "Content-Type: application/json" -d '{"title":"冒煙測試牛肉麵","price":180,"body":"湯頭濃郁，麵條Q彈。","lat":25.033,"lng":121.5654,"address":"台北市信義區信義路五段7號","visited_on":"2026-11-18","ratings":{"taste":5,"price":4,"bogus":3,"service":9}}')
+r=$(req POST /api/reviews -H "Content-Type: application/json" -d '{"title":"冒煙測試牛肉麵","price":180,"body":"湯頭濃郁，麵條Q彈。","lat":25.033,"lng":121.5654,"address":"台北市信義區信義路五段7號","visited_on":"2026-11-18","ratings":{"taste":5,"price":4,"bogus":3,"service":9},"meal":"  冒煙紅燒牛肉麵  "}')
 check "建立點評" 201 "$(code "$r")" "$(body "$r")"
 id=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review"]["id"])')
 ratings=$(body "$r" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["review"]["ratings"], sort_keys=True))')
 [ "$ratings" = '{"price": 4, "taste": 5}' ] && echo "通過：評比白名單過濾" || { echo "失敗：評比白名單 $ratings"; fail=1; }
+# 餐點（選填，100 字內，去前後空白，可搜尋）
+m=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["review"]["meal"])')
+[ "$m" = "冒煙紅燒牛肉麵" ] && echo "通過：餐點去前後空白後存入" || { echo "失敗：餐點（$m）"; fail=1; }
+long_meal=$(python3 -c 'print("麵"*101)')
+r=$(req POST /api/reviews -H "Content-Type: application/json" -d "{\"title\":\"t\",\"price\":1,\"lat\":1,\"lng\":1,\"address\":\"\",\"meal\":\"$long_meal\"}")
+check "餐點超過 100 字回 422" 422 "$(code "$r")"
+q=$(python3 -c 'import urllib.parse; print(urllib.parse.quote("冒煙紅燒"))')
+r=$(req GET "/api/reviews?q=$q"); n=$(body "$r" | python3 -c 'import json,sys; print(sum(i["id"]=='"$id"' for i in json.load(sys.stdin)["items"]))')
+[ "$n" = "1" ] && echo "通過：可用餐點搜尋" || { echo "失敗：餐點搜尋（$n）"; fail=1; }
 
 # 統計頁：日期範圍以用餐日期為準，格式錯誤或開始晚於結束回 400
 r=$(req GET "/api/stats?from=2026-11-18&to=2026-11-18"); check "統計日期範圍" 200 "$(code "$r")"
@@ -76,8 +85,8 @@ r=$(req GET "/api/reviews?q=$q"); check "長中文搜尋不出錯（無 LIKE 上
 r=$(req PATCH "/api/photos/$pid" -H "Content-Type: application/json" -d '{"caption":"新說明"}'); check "更新照片說明" 200 "$(code "$r")"
 r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"nickname":"小林","defaultHearts":4,"quality":999,"shareFields":{"body":false}}')
 check "儲存設定" 200 "$(code "$r")"
-s=$(body "$r" | python3 -c 'import json,sys; s=json.load(sys.stdin)["settings"]; print(s["nickname"], s["defaultHearts"], s["quality"], s["shareFields"]["body"])')
-[ "$s" = "小林 4 80 False" ] && echo "通過：設定白名單與範圍" || { echo "失敗：設定 $s"; fail=1; }
+s=$(body "$r" | python3 -c 'import json,sys; s=json.load(sys.stdin)["settings"]; print(s["nickname"], s["defaultHearts"], s["quality"], s["shareFields"]["body"], s["shareFields"]["meal"])')
+[ "$s" = "小林 4 80 False True" ] && echo "通過：設定白名單與範圍" || { echo "失敗：設定 $s"; fail=1; }
 # GA4 評估 ID（ADR 028）：去空白轉大寫；格式不對存空字串
 r=$(req PUT /api/settings -H "Content-Type: application/json" -d '{"gaMeasurementId":" g-ab12cd34ef "}')
 s=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["settings"]["gaMeasurementId"])')

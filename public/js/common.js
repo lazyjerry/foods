@@ -11,7 +11,8 @@ export const RATING_DEFS = [
 ];
 
 export const SHARE_FIELDS = [
-  ["title", "標題"],
+  ["title", "餐廳"],
+  ["meal", "餐點"],
   ["price", "價格"],
   ["date", "用餐日期"],
   ["address", "地址"],

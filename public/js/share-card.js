@@ -82,7 +82,7 @@ function content(data) {
       meta: `共 ${rs.length} 筆點評`,
       ratings: [],
       body: "",
-      items: rs.slice(0, MAX_ITEMS).map((r) => ({ title: r.title, price: formatPrice(r.price) })),
+      items: rs.slice(0, MAX_ITEMS).map((r) => ({ title: r.meal ? `${r.title}・${r.meal}` : r.title, price: formatPrice(r.price) })),
       more: rs.length > MAX_ITEMS ? `還有 ${rs.length - MAX_ITEMS} 筆點評` : "",
       tags: [],
     };
@@ -92,7 +92,7 @@ function content(data) {
   return {
     eyebrow: `${by}點評`,
     title: r.title,
-    meta: [formatPrice(r.price), r.visited_on].filter(Boolean).join(" · "),
+    meta: [r.meal, formatPrice(r.price), r.visited_on].filter(Boolean).join(" · "),
     ratings: ratingSummary(r.ratings),
     body: r.body || "",
     items: [],

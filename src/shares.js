@@ -139,6 +139,7 @@ export async function publicShare(env, token) {
     const photos = photosBy.get(r.id) || [];
     return {
       title: r.title,
+      meal: r.meal,
       price: r.price,
       body: r.body,
       address: r.address,

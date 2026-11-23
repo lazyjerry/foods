@@ -61,6 +61,7 @@ function layout(W, scale) {
   const ink2 = token("--on-ink-2");
 
   if (sel.title) rows.push({ lines: wrap(review.title, font(60, 800), maxW, 2), font: font(60, 800), lh: 72 * u, color: token("--card") });
+  if (sel.meal && review.meal) rows.push({ lines: wrap(review.meal, font(36, 700), maxW, 2), font: font(36, 700), lh: 48 * u, color: token("--card") });
   const meta = [sel.price ? formatPrice(review.price) : "", sel.date && review.visited_on ? review.visited_on : "", sel.nickname && settings.nickname ? `${settings.nickname} 的點評` : ""].filter(Boolean).join(" · ");
   if (meta) rows.push({ lines: wrap(meta, font(32, 700), maxW, 2), font: font(32, 700), lh: 44 * u, color: token("--coral") });
   if (sel.address) rows.push({ lines: wrap(review.address || NO_ADDRESS, font(28), maxW, 2), font: font(28), lh: 40 * u, color: ink2 });

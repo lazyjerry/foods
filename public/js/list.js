@@ -15,7 +15,7 @@ function item(r) {
   const cover = r.cover_key
     ? `<a class="app-review-cover" href="/edit?id=${r.id}"><img src="${mediaUrl(r.cover_key)}" alt="${esc(r.title)} 的照片" loading="lazy"></a>`
     : `<a class="app-review-cover" href="/edit?id=${r.id}"><img src="/img/no-photo-${noPhoto}.svg" alt="${esc(r.title)} 尚無照片" loading="lazy"></a>`;
-  const meta = [formatPrice(r.price), r.visited_on, r.photo_count ? `${r.photo_count} 張照片` : ""].filter(Boolean).join(" · ");
+  const meta = [r.meal, formatPrice(r.price), r.visited_on, r.photo_count ? `${r.photo_count} 張照片` : ""].filter(Boolean).join(" · "); // 餐點放第一項，緊接在店名下方
   const rating = ratingSummary(r.ratings);
   return `<article class="app-review">
   ${cover}
@@ -144,7 +144,7 @@ function popupTags(tags) {
 
 function popupOne(place) {
   const r = place.reviews[0];
-  const meta = [formatPrice(r.price), r.visited_on].filter(Boolean).join(" · ");
+  const meta = [r.meal, formatPrice(r.price), r.visited_on].filter(Boolean).join(" · ");
   const rate = rateLine(r);
   return `<div class="app-pop">
   <div class="app-pop-head">
@@ -161,7 +161,7 @@ function popupOne(place) {
 
 function popupMany(place) {
   const rows = place.reviews.map((r) => {
-    const meta = [formatPrice(r.price), r.visited_on, rateLine(r, true)].filter(Boolean).join(" · ");
+    const meta = [r.meal, formatPrice(r.price), r.visited_on, rateLine(r, true)].filter(Boolean).join(" · ");
     return `<li><img src="${coverSrc(r)}" alt="" loading="lazy"><div class="app-pop-title"><a href="/edit?id=${r.id}">${esc(r.title)}</a><div class="app-pop-meta">${esc(meta)}</div></div></li>`;
   });
   return `<div class="app-pop">

@@ -15,7 +15,7 @@ function fileName(p) {
 }
 
 function tile(p) {
-  const meta = [p.caption, p.visited_on, `${formatBytes(p.bytes)}`].filter(Boolean).join(" · ");
+  const meta = [p.meal, p.caption, p.visited_on, `${formatBytes(p.bytes)}`].filter(Boolean).join(" · ");
   return `<figure class="app-shot">
   <button class="app-photo-open" type="button" aria-label="放大照片" data-caption="${esc([p.title, p.caption].filter(Boolean).join(" · "))}"><img src="${mediaUrl(p.key)}" alt="${esc(p.caption || p.title)}" width="${p.width || ""}" height="${p.height || ""}" loading="lazy"></button>
   <figcaption class="app-shot-body">

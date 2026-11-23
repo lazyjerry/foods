@@ -21,7 +21,7 @@ JERRY = Path(os.environ.get("JERRY_UI", Path.home() / ".ai-global/skills/build-j
 NAV = [("/", "點評", "index"), ("/edit", "新增", "edit"), ("/photos", "照片集", "photos"),
        ("/share", "分享", "share"), ("/settings", "設定", "settings"), ("/stats", "統計", "stats")]
 
-SHARE_FIELDS = [("title", "標題"), ("price", "價格"), ("date", "用餐日期"), ("address", "地址"),
+SHARE_FIELDS = [("title", "餐廳"), ("meal", "餐點"), ("price", "價格"), ("date", "用餐日期"), ("address", "地址"),
                 ("ratings", "評比"), ("body", "點評內容"), ("nickname", "稱呼")]
 
 # 編輯頁「選擇插畫」可選的圖（public/img/illustrations/），檔名與顯示名稱
@@ -175,8 +175,8 @@ def build_index():
     # 新增點評獨立成第一張卡片，進首頁第一眼就看到（ADR 016）
     add = sn("A2", buttons=sn("A1:link", href="/edit", text="新增點評"))
     cards = "\n".join([
-        card("01", "add-title", "記下一筆", "標題、價格、點評與位置必填，照片和評比可以之後再補", add, variant="is-roomy is-wide"),
-        card("02", "list-title", "搜尋點評", "依店名、地址、點評內容或分類篩選", content, accent="accent-blue", variant="is-roomy is-wide"),
+        card("01", "add-title", "記下一筆", "餐廳、價格、點評與位置必填，餐點、照片和評比可以之後再補", add, variant="is-roomy is-wide"),
+        card("02", "list-title", "搜尋點評", "依店名、餐點、地址、點評內容或分類篩選", content, accent="accent-blue", variant="is-roomy is-wide"),
     ])
     main = sn("L4", cards=cards)
     page("index.html", "食物點評｜記錄店家、價格、位置與照片", "瀏覽與搜尋自己記錄的食物點評",
@@ -216,12 +216,14 @@ def map_view():
 
 
 def build_edit():
-    title = attr(sn("F2", id="title", label="標題", required=True, placeholder="例如：老張牛肉麵"), 'id="title"', 'maxlength="100" autocomplete="off"')
+    title = attr(sn("F2", id="title", label="餐廳", required=True, placeholder="例如：老張牛肉麵"), 'id="title"', 'maxlength="100" autocomplete="off"')
+    # 餐點（ADR：docs/afk-skill/adr/001）：選填，放在餐廳下方
+    meal = attr(sn("F2", id="meal", label="餐點", placeholder="例如：紅燒牛肉麵、燙青菜"), 'id="meal"', 'maxlength="100" autocomplete="off"')
     price = attr(sn("F2", id="price", label="價格", type="number", inputmode="numeric", num="num", required=True, hint="新台幣，整數"),
                  'id="price"', 'min="0" max="1000000" step="1"')
     visited = sn("F2", id="visited-on", label="用餐日期", type="date", num="num app-date")
-    body = sn("F2:textarea", id="body", label="點評", maxlength="2000", placeholder="味道、份量、推薦的品項…", hint="0／2000 字")
-    basic = stack(title, sn("F2:row", fields=price + visited), body, tags_block())
+    body = sn("F2:textarea", id="body", label="點評", maxlength="2000", placeholder="味道、份量、服務…", hint="0／2000 字")
+    basic = stack(title, meal, sn("F2:row", fields=price + visited), body, tags_block())
 
     lat = attr(sn("F2", id="lat", label="緯度", type="number", num="num", required=True), 'id="lat"', 'min="-90" max="90" step="any"')
     lng = attr(sn("F2", id="lng", label="經度", type="number", num="num", required=True), 'id="lng"', 'min="-180" max="180" step="any"')
@@ -258,14 +260,14 @@ def build_edit():
     )
 
     cards = "\n".join([
-        card("01", "basic-title", "基本資料", "標題、價格與點評內容", basic),
+        card("01", "basic-title", "基本資料", "餐廳、餐點、價格與點評內容", basic),
         card("02", "location-title", "位置", "點選地圖或拖曳標記，地址與座標互轉", location, accent="accent-blue"),
         card("03", "ratings-title", "評比（選用）", "每項 1–5 顆心，也可略過", ratings, accent="accent-violet"),
         card("04", "photos-title", "照片", "上傳前在裝置上壓縮，不保留原檔", photos, accent="accent-green"),
         card("05", "save-title", "儲存", "照片在儲存時一併上傳", save, variant="is-roomy is-wide"),
     ])
     main = sn("L4", cards=cards) + "\n" + privacy_note()
-    page("edit.html", "新增點評｜記錄標題、價格、位置、評比與照片", "新增或編輯一筆食物點評",
+    page("edit.html", "新增點評｜記錄餐廳、餐點、價格、位置、評比與照片", "新增或編輯一筆食物點評",
          {"eyebrow": "NEW REVIEW", "solid": "店家點評", "outline": "記下這一餐",
           "lede": "剛吃完趁印象還在，記下價格、味道和位置。"},
          main, ["vendor/leaflet/leaflet.js", "module:js/edit.js"], "edit", form="review-form")
@@ -304,7 +306,7 @@ def build_photos():
         sn("A1", variant="secondary", id="more-btn", text="載入更多").replace("<button", "<button hidden", 1),
         photo_box(),
     ])
-    main = sn("L4", cards=card("01", "gallery-title", "照片集", "依店名、地址、點評、分類或照片說明搜尋", content, accent="accent-green", variant="is-roomy is-wide"))
+    main = sn("L4", cards=card("01", "gallery-title", "照片集", "依店名、餐點、地址、點評、分類或照片說明搜尋", content, accent="accent-green", variant="is-roomy is-wide"))
     page("photos.html", "照片集｜瀏覽、搜尋與下載壓縮後的點評照片", "瀏覽、搜尋與下載點評照片",
          {"eyebrow": "PHOTO GALLERY", "solid": "照片集", "outline": "瀏覽下載",
           "lede": "翻翻吃過的每一餐，想要的照片存回手機。"},

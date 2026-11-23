@@ -85,8 +85,9 @@ with sync_playwright() as p:
     ok("地圖載入（Leaflet CSS 動態插入）", page.locator(".leaflet-container").count() == 1 and page.locator("link[data-leaflet]").count() == 1)
 
     page.click("#save-btn")
-    ok("必填驗證：標題", "請輸入標題" in page.text_content("#save-status"))
+    ok("必填驗證：餐廳", "請輸入餐廳" in page.text_content("#save-status"))
     page.fill("#title", "E2E 測試拉麵")
+    page.fill("#meal", "E2E叉燒拉麵")
     page.fill("#price", "260")
     page.fill("#body", "叉燒很厚，湯偏鹹。")
     ok("字數計數", page.text_content("#body-hint") == "9／2000 字", page.text_content("#body-hint"))
@@ -130,14 +131,16 @@ with sync_playwright() as p:
        "待上傳" in page.text_content(".app-photo-tile:last-child .meta") and not page.evaluate("document.querySelector('#illust-sheet').open"))
     page.click(".app-photo-tile:last-child [data-remove]")
 
-    # 自動插畫：沒有照片、分類含插畫名稱時，儲存前自動加入那張插畫（分類優先於標題）；測完刪掉這筆
+    # 自動插畫：沒有照片、分類、餐點或餐廳含插畫名稱時，儲存前自動加入那張插畫（分類 → 餐點 → 餐廳）；測完刪掉這筆
     page.goto(BASE + "/edit")
     page.wait_for_function("document.querySelector('#address').value.length > 0", timeout=15000)
     page.fill("#title", "E2E 自動插畫拉麵")
     page.fill("#price", "120")
+    page.fill("#meal", "滷肉飯")
+    ok("餐點優先於餐廳比對插畫", "「滷肉飯」插畫" in page.text_content("#photo-status"), page.text_content("#photo-status"))
     page.fill("#tag-input", "大腸包小腸")
     page.press("#tag-input", "Enter")
-    ok("沒有照片時提示會自動加入插畫（分類優先於標題）", "「大腸包小腸」插畫" in page.text_content("#photo-status"), page.text_content("#photo-status"))
+    ok("沒有照片時提示會自動加入插畫（分類優先於餐點）", "「大腸包小腸」插畫" in page.text_content("#photo-status"), page.text_content("#photo-status"))
     page.click("#save-btn")
     page.wait_for_function("document.querySelector('#save-status').textContent === '已儲存'", timeout=20000)
     ok("儲存後自動加入一張插畫並上傳",
@@ -157,6 +160,11 @@ with sync_playwright() as p:
     page.click("#search-btn")
     page.wait_for_function("document.querySelector('#list-status').textContent.includes('結果')")
     ok("列表搜尋", page.locator(".app-review").count() >= 1 and "E2E 測試拉麵" in page.text_content(".app-review"))
+    ok("列表在店名下方顯示餐點", "E2E叉燒拉麵" in page.text_content(".app-review .meta"), page.text_content(".app-review .meta"))
+    page.fill("#q", "E2E叉燒拉麵")
+    page.click("#search-btn")
+    page.wait_for_function("document.querySelector('#list-status').textContent.includes('結果')")
+    ok("可用餐點搜尋", page.locator(".app-review").count() == 1 and "E2E 測試拉麵" in page.text_content(".app-review"))
     shot(page, "list")
 
     # 照片集

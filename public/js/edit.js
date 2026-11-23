@@ -8,7 +8,7 @@ const FALLBACK = { lat: 25.0478, lng: 121.517 }; // 台北車站：拿不到目�
 const MAX_PHOTOS = 20;
 const form = $("#review-form");
 const f = {
-  title: $("#title"), price: $("#price"), visited: $("#visited-on"), body: $("#body"),
+  title: $("#title"), meal: $("#meal"), price: $("#price"), visited: $("#visited-on"), body: $("#body"),
   lat: $("#lat"), lng: $("#lng"), address: $("#address"), tags: $("#tag-input"),
 };
 const geoStatus = $("#geo-status");
@@ -73,7 +73,7 @@ function clearInvalid() {
   Object.values(f).forEach((el) => markInvalid(el, false));
 }
 
-const FIELD_MAP = { title: "title", price: "price", body: "body", lat: "lat", lng: "lng", address: "address", visited_on: "visited", tags: "tags" };
+const FIELD_MAP = { title: "title", meal: "meal", price: "price", body: "body", lat: "lat", lng: "lng", address: "address", visited_on: "visited", tags: "tags" };
 
 function showFieldErrors(fields) {
   let first;
@@ -89,7 +89,7 @@ function showFieldErrors(fields) {
 
 function validate() {
   const errors = {};
-  if (!f.title.value.trim()) errors.title = "請輸入標題";
+  if (!f.title.value.trim()) errors.title = "請輸入餐廳";
   const price = Number(f.price.value);
   if (f.price.value === "" || !Number.isInteger(price) || price < 0 || price > 1_000_000) errors.price = "請輸入 0 到 1,000,000 的整數價格";
   if (charCount(f.body.value) > 2000) errors.body = "點評最多 2000 字";
@@ -446,8 +446,8 @@ async function addIllustration(url) {
   }
 }
 
-// 自動插畫：點評沒有照片、但分類或標題含某張插畫的名稱時，儲存前自動加入那張插畫
-// 比對順序：分類優先於標題；同一層取名稱最長的，避免短名稱（如「麵線」）搶走較精確的長名稱
+// 自動插畫：點評沒有照片、但分類、餐點或餐廳含某張插畫的名稱時，儲存前自動加入那張插畫
+// 比對順序：分類 → 餐點 → 餐廳（docs/afk-skill/adr/003）；同一層取名稱最長的，避免短名稱（如「麵線」）搶走較精確的長名稱
 const ILLUSTS = [...illustSheet.querySelectorAll("[data-illust]")]
   .map((b) => ({ url: b.dataset.illust, label: b.textContent.trim() }))
   .sort((a, b) => b.label.length - a.label.length);
@@ -457,8 +457,10 @@ function matchIllust() {
   if (visiblePhotos().length) return null;
   const pending = tagInput.value.split(/[\s,，、]+/).map(cleanTag).filter(Boolean); // 還沒按「加入」的分類，儲存時也會一併存
   const allTags = [...tags, ...pending];
+  const meal = f.meal.value;
   const title = f.title.value;
-  return ILLUSTS.find((i) => allTags.some((t) => t.includes(i.label))) || ILLUSTS.find((i) => title.includes(i.label)) || null;
+  return ILLUSTS.find((i) => allTags.some((t) => t.includes(i.label))) || ILLUSTS.find((i) => meal.includes(i.label))
+    || ILLUSTS.find((i) => title.includes(i.label)) || null;
 }
 
 function updateIllustHint() {
@@ -518,6 +520,7 @@ async function syncPhotos(id) {
 // ---------- 載入與儲存 ----------
 function fillReview(r) {
   f.title.value = r.title;
+  f.meal.value = r.meal || "";
   f.price.value = r.price;
   f.visited.value = r.visited_on || "";
   f.body.value = r.body;
@@ -555,14 +558,14 @@ form.addEventListener("submit", async (e) => {
     tagInput.focus();
     return;
   }
-  const auto = matchIllust(); // 沒有照片時依分類或標題補一張插畫；壓縮期間 addFiles 自己會鎖畫面
+  const auto = matchIllust(); // 沒有照片時依分類、餐點或餐廳補一張插畫；壓縮期間 addFiles 自己會鎖畫面
   const autoAdded = auto ? await addIllustration(auto.url) : false;
   saving = true;
   lockScreen("儲存中…"); // 先鎖再停用按鈕：停用會讓瀏覽器移走焦點，鎖定時要記住的是儲存鈕
   $("#save-btn").disabled = true;
   setStatus(saveStatus, "儲存中…");
   const payload = {
-    title: f.title.value.trim(), price: Number(f.price.value), body: f.body.value, visited_on: f.visited.value || null,
+    title: f.title.value.trim(), meal: f.meal.value.trim(), price: Number(f.price.value), body: f.body.value, visited_on: f.visited.value || null,
     lat: Number(f.lat.value), lng: Number(f.lng.value), address: f.address.value.trim(), ratings: collectRatings(), tags,
   };
   try {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>新增點評｜記錄標題、價格、位置、評比與照片</title>
+<title>新增點評｜記錄餐廳、餐點、價格、位置、評比與照片</title>
 <meta name="description" content="新增或編輯一筆食物點評">
 <meta name="robots" content="noindex">
 <script>if (typeof HTMLDialogElement === "function") document.documentElement.classList.add("has-dialog");</script>
@@ -46,11 +46,15 @@
 </nav>
 <div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="basic-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">01</span>
-  <div><h2 id="basic-title">基本資料</h2><p>標題、價格與點評內容</p></div>
+  <div><h2 id="basic-title">基本資料</h2><p>餐廳、餐點、價格與點評內容</p></div>
 </div>
 <div class="stack"><div class="field">
-  <label for="title">標題</label>
+  <label for="title">餐廳</label>
   <input id="title" maxlength="100" autocomplete="off" type="text" placeholder="例如：老張牛肉麵" required>
+</div>
+<div class="field">
+  <label for="meal">餐點</label>
+  <input id="meal" maxlength="100" autocomplete="off" type="text" placeholder="例如：紅燒牛肉麵、燙青菜">
 </div>
 <div class="field-row"><div class="field">
   <label for="price">價格</label>
@@ -62,7 +66,7 @@
 </div></div>
 <div class="field">
   <label for="body">點評</label>
-  <textarea id="body" placeholder="味道、份量、推薦的品項…" maxlength="2000" spellcheck="false" aria-describedby="body-hint"></textarea>
+  <textarea id="body" placeholder="味道、份量、服務…" maxlength="2000" spellcheck="false" aria-describedby="body-hint"></textarea>
   <p class="hint" id="body-hint">0／2000 字</p>
 </div>
 <div class="stack"><div class="field">

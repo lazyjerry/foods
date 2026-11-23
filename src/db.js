@@ -3,7 +3,7 @@
 import { HttpError } from "./http.js";
 
 export const RATING_KEYS = ["taste", "price", "experience", "ambience", "service", "portion"];
-export const SHARE_FIELD_KEYS = ["title", "price", "date", "address", "ratings", "body", "nickname"];
+export const SHARE_FIELD_KEYS = ["title", "meal", "price", "date", "address", "ratings", "body", "nickname"];
 
 export const DEFAULT_SETTINGS = {
   nickname: "",
@@ -32,8 +32,10 @@ function num(value) {
 export function validateReview(input) {
   const errors = {};
   const title = typeof input?.title === "string" ? input.title.trim() : "";
-  if (!title) errors.title = "請輸入標題";
-  else if (chars(title) > 100) errors.title = "標題最多 100 字";
+  if (!title) errors.title = "請輸入餐廳";
+  else if (chars(title) > 100) errors.title = "餐廳最多 100 字";
+  const meal = typeof input?.meal === "string" ? input.meal.trim() : ""; // 餐點，選填
+  if (chars(meal) > 100) errors.meal = "餐點最多 100 字";
 
   const price = num(input?.price);
   if (!Number.isInteger(price) || price < 0 || price > 1_000_000) errors.price = "請輸入 0 到 1,000,000 的整數價格";
@@ -72,7 +74,7 @@ export function validateReview(input) {
     err.fields = errors;
     throw err;
   }
-  return { title, price, body, lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6, address, visited_on: visitedOn, ratings, tags: tags.list };
+  return { title, meal, price, body, lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6, address, visited_on: visitedOn, ratings, tags: tags.list };
 }
 
 // 分類標籤（ADR 019）：去掉開頭的 #、NFKC 正規化、合併重複；不含空白（搜尋以空白分隔關鍵字）。
@@ -116,6 +118,7 @@ function rowToReview(row) {
   return {
     id: row.id,
     title: row.title,
+    meal: row.meal,
     price: row.price,
     body: row.body,
     lat: row.lat,
@@ -150,8 +153,8 @@ function keysetPage(rows, limit) {
   return { items, hasMore, nextCursor: hasMore ? `${last.created_at}~${last.id}` : null };
 }
 
-// 列表與地圖模式共用的關鍵字條件：店名、地址、內文、分類任一處含該字
-const SEARCH_COND = "instr(lower(r.title || ' ' || r.address || ' ' || r.body || ' ' || r.tags), ?) > 0";
+// 列表與地圖模式共用的關鍵字條件：店名、餐點、地址、內文、分類任一處含該字
+const SEARCH_COND = "instr(lower(r.title || ' ' || r.meal || ' ' || r.address || ' ' || r.body || ' ' || r.tags), ?) > 0";
 
 export async function listReviews(db, { q, limit, cursor }) {
   const terms = searchTerms(q);
@@ -176,7 +179,7 @@ const MAP_EXCERPT = 60;
 export async function listReviewPoints(db, { q }) {
   const terms = searchTerms(q);
   const conds = terms.map(() => SEARCH_COND);
-  const sql = `SELECT r.id, r.title, r.price, r.lat, r.lng, r.address, r.ratings, r.tags, r.visited_on,
+  const sql = `SELECT r.id, r.title, r.meal, r.price, r.lat, r.lng, r.address, r.ratings, r.tags, r.visited_on,
       substr(r.body, 1, ${MAP_EXCERPT}) AS excerpt, length(r.body) > ${MAP_EXCERPT} AS excerpt_cut,
       (SELECT p.r2_key FROM photos p WHERE p.review_id = r.id ORDER BY p.id LIMIT 1) AS cover_key
     FROM reviews r ${conds.length ? "WHERE " + conds.join(" AND ") : ""}
@@ -185,6 +188,7 @@ export async function listReviewPoints(db, { q }) {
   const items = results.slice(0, MAP_POINT_LIMIT).map((row) => ({
     id: row.id,
     title: row.title,
+    meal: row.meal,
     price: row.price,
     lat: row.lat,
     lng: row.lng,
@@ -208,16 +212,16 @@ export async function getReview(db, id) {
 export async function createReview(db, v) {
   const t = now();
   const row = await db
-    .prepare("INSERT INTO reviews (title, price, body, lat, lng, address, ratings, tags, visited_on, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id")
-    .bind(v.title, v.price, v.body, v.lat, v.lng, v.address, JSON.stringify(v.ratings), JSON.stringify(v.tags), v.visited_on, t, t)
+    .prepare("INSERT INTO reviews (title, meal, price, body, lat, lng, address, ratings, tags, visited_on, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id")
+    .bind(v.title, v.meal, v.price, v.body, v.lat, v.lng, v.address, JSON.stringify(v.ratings), JSON.stringify(v.tags), v.visited_on, t, t)
     .first();
   return getReview(db, row.id);
 }
 
 export async function updateReview(db, id, v) {
   const res = await db
-    .prepare("UPDATE reviews SET title = ?, price = ?, body = ?, lat = ?, lng = ?, address = ?, ratings = ?, tags = ?, visited_on = ?, updated_at = ? WHERE id = ?")
-    .bind(v.title, v.price, v.body, v.lat, v.lng, v.address, JSON.stringify(v.ratings), JSON.stringify(v.tags), v.visited_on, now(), id)
+    .prepare("UPDATE reviews SET title = ?, meal = ?, price = ?, body = ?, lat = ?, lng = ?, address = ?, ratings = ?, tags = ?, visited_on = ?, updated_at = ? WHERE id = ?")
+    .bind(v.title, v.meal, v.price, v.body, v.lat, v.lng, v.address, JSON.stringify(v.ratings), JSON.stringify(v.tags), v.visited_on, now(), id)
     .run();
   if (!res.meta.changes) throw new HttpError(404, "找不到這筆點評，可能已被刪除");
   return getReview(db, id);
@@ -283,14 +287,14 @@ export async function photoByKey(db, key) {
 
 export async function listPhotos(db, { q, limit, cursor }) {
   const terms = searchTerms(q);
-  const conds = terms.map(() => "instr(lower(r.title || ' ' || r.address || ' ' || r.body || ' ' || r.tags || ' ' || p.caption), ?) > 0");
+  const conds = terms.map(() => "instr(lower(r.title || ' ' || r.meal || ' ' || r.address || ' ' || r.body || ' ' || r.tags || ' ' || p.caption), ?) > 0");
   if (cursor) conds.push("(p.created_at, p.id) < (?, ?)");
-  const sql = `SELECT p.*, r.title, r.address, r.visited_on, r.tags FROM photos p JOIN reviews r ON r.id = p.review_id
+  const sql = `SELECT p.*, r.title, r.meal, r.address, r.visited_on, r.tags FROM photos p JOIN reviews r ON r.id = p.review_id
     ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`;
   const after = cursor ? [cursor.createdAt, cursor.id] : [];
   const { results } = await db.prepare(sql).bind(...terms, ...after, limit + 1).all();
   const page = keysetPage(results, limit);
-  const items = page.items.map((r) => ({ ...rowToPhoto(r), title: r.title, address: r.address, visited_on: r.visited_on, tags: parseTags(r.tags) }));
+  const items = page.items.map((r) => ({ ...rowToPhoto(r), title: r.title, meal: r.meal, address: r.address, visited_on: r.visited_on, tags: parseTags(r.tags) }));
   return { ...page, items };
 }
 
@@ -331,11 +335,11 @@ export async function listStatsRows(db, { from, to }) {
     conds.push(`${STATS_DATE} <= ?`);
     binds.push(to);
   }
-  const sql = `SELECT id, title, price, ratings, tags, ${STATS_DATE} AS date FROM reviews
+  const sql = `SELECT id, title, meal, price, ratings, tags, ${STATS_DATE} AS date FROM reviews
     ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY date DESC, id DESC LIMIT ?`;
   const { results } = await db.prepare(sql).bind(...binds, STATS_MAX_ROWS + 1).all();
   const items = results.slice(0, STATS_MAX_ROWS).map((r) => ({
-    id: r.id, title: r.title, price: r.price, date: r.date, ratings: JSON.parse(r.ratings || "{}"), tags: parseTags(r.tags),
+    id: r.id, title: r.title, meal: r.meal, price: r.price, date: r.date, ratings: JSON.parse(r.ratings || "{}"), tags: parseTags(r.tags),
   }));
   return { from: from || null, to: to || null, items, truncated: results.length > STATS_MAX_ROWS };
 }
