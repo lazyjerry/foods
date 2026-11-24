@@ -75,6 +75,7 @@ bash scripts/smoke-api.sh                      # API 冒煙測試（本機）
 python3 scripts/e2e.py                         # 瀏覽器端到端測試（本機，含虛擬驗證器的通行金鑰流程）
 bash scripts/smoke-api.sh <網址> <密碼> [帳號]  # 對正式環境跑，會建立並刪除一筆測試資料；不測修改密碼
 python3 scripts/photo-gc-test.py               # 照片檔共用的併發與中斷情境（本機，需先跑 npx wrangler dev --test-scheduled）
+node scripts/mcp-test.mjs                      # MCP 閘道串接的 describe()／call()（自己起 wrangler dev，不動本機資料）
 ```
 
 重拍 README 的截圖與影片（需要 ffmpeg；地圖圖磚要連網）：
@@ -129,6 +130,20 @@ npx wrangler d1 execute food-review-db --remote --command "UPDATE auth_config SE
 npx wrangler d1 execute food-review-db --remote --command "UPDATE users SET password_hash = NULL, session_version = session_version + 1 WHERE username = 'admin'"
 ```
 
+## 接上 AI client（MCP）
+
+`src/mcp.js` 的 `FoodsRpc` 是給 MCP 閘道（mcp-gateway）用的 RPC entrypoint：閘道負責 MCP、OAuth 登入與授權範圍，經服務綁定呼叫這裡的 `describe()`、`call()`；本服務沒有公開的 MCP 網址。驗證與寫入跟網頁的 API 共用 `src/db.js`。
+
+| 授權範圍 | 預設勾選 | tool |
+|---|---|---|
+| `foods:read` 查詢點評 | 是 | `foods_search` 搜尋、`foods_get` 讀取一筆、`foods_tags` 列出分類、`foods_stats` 統計用點評列 |
+| `foods:write` 新增與修改點評 | 否 | `foods_create` 新增、`foods_update` 修改（只改有帶的欄位） |
+| `foods:geo` 地址查座標 | 否 | `foods_geocode`：把地址送到 OpenStreetMap Nominatim |
+
+- 不開放：刪除點評、照片、分享連結、設定、帳號與通行金鑰。
+- 閘道端的設定：服務綁定 `{ "binding": "FOODS", "service": "food-review", "entrypoint": "FoodsRpc" }`，`SERVICES` 加上 `FOODS`。順序是本服務先部署、閘道後接。
+- 測試：`node scripts/mcp-test.mjs`，用 `wrangler dev` 多跑一個 driver Worker 經服務綁定呼叫，D1 放在暫存目錄。
+
 ## 專案結構
 
 ```text
@@ -140,6 +155,7 @@ src/
   db.js           D1 查詢、欄位驗證、設定白名單（搜尋用 instr，避開 LIKE 的 50 bytes 限制）
   geo.js          Nominatim 代理與台灣地址格式
   http.js         回應與錯誤處理
+  mcp.js          MCP 閘道串接的 RPC entrypoint（FoodsRpc：describe、call）
 migrations/       D1 schema
 public/
   *.html          由 scripts/build_pages.py 產生，不要手改
@@ -158,6 +174,7 @@ scripts/
   smoke-api.sh    API 冒煙測試
   e2e.py          Playwright 端到端測試
   photo-gc-test.py  照片檔共用的鎖與回收情境測試
+  mcp-test.mjs    MCP 閘道串接的 RPC 測試
   build_icons.py  產生 icon 與 favicon（需 macOS 內建中文字型；改設計時才重跑）
   readme-media.sh、readme_media.py、readme-media-reviews.json  重拍 README 截圖與影片
 public/img/       點評沒有照片時的預設圖（no-photo-1～5.svg，依點評 id 分配）
