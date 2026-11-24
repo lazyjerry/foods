@@ -368,19 +368,30 @@ def build_share():
 
 
 def share_web_panel():
-    # 分享網頁（ADR 020）：分類或單一點評建立免登入的公開連結
-    target = stack(
-        sn("A5", legend="分享內容", name="web-kind", options=[
-            {"value": "tag", "text": "整個分類", "checked": True}, {"value": "review", "text": "單一點評"}]),
-        sn("F2:select", id="web-tag", label="分類", options=[{"value": "0", "text": "載入中…"}], hint="列出已用在點評上的分類"),
-        attr(sn("F2:select", id="web-review", label="點評", options=[{"value": "0", "text": "載入中…"}]), '<div class="field"', "hidden"),
-        sn("A1", variant="is-block", id="web-create-btn", text="建立分享連結", arrow=True),
-        sn("F10", id="web-status", role="status"),
-    )
-    # 已分享的連結：後端 cursor 分頁＋關鍵字搜尋；清單在 .app-share-scroll 內捲動，卡片高度跟左邊卡片一致
+    # 分享網頁（ADR 020）：分類或單一點評建立免登入的公開連結。兩張卡都滿版一欄；
+    # 建立列（.app-share-create）把分享內容、選單、按鈕排成一行。分享內容的切換要跟選單同高，
+    # A5 segmented 比輸入框矮又不能覆寫，改用 .app-share-kind 自己畫，放進 F2:group 拿到同樣的欄位標題
+    kind = ('<div class="app-share-kind" role="radiogroup" aria-labelledby="web-kind-label">'
+            '<label><input type="radio" name="web-kind" value="tag" checked><span>整個分類</span></label>'
+            '<label><input type="radio" name="web-kind" value="review"><span>單一點評</span></label></div>')
+    create = ('<div class="app-share-create">\n'
+              + sn("F2:group", id="web-kind-label", label="分享內容", control=kind) + "\n"
+              + sn("F2:select", id="web-tag", label="分類", options=[{"value": "0", "text": "載入中…"}]) + "\n"
+              + attr(sn("F2:select", id="web-review", label="點評", options=[{"value": "0", "text": "載入中…"}]), '<div class="field"', "hidden") + "\n"
+              + sn("A1", id="web-create-btn", text="建立分享連結", arrow=True) + "\n</div>")
+    target = stack(create, sn("F10", id="web-status", role="status"))
+    # 已分享的連結：後端 cursor 分頁＋關鍵字、類型、建立來源篩選；清單在 .app-share-scroll 內限高捲動
     f3 = sn("F3", id="share-q", placeholder="例如：拉麵", button="搜尋", button_label="搜尋已分享的連結")
     f3 = f3.replace('<button type="button"', '<button type="submit" id="share-search-btn"', 1)
-    search = sn("F1", id="share-search-form", content=sn("F2:control", id="share-q", label="關鍵字", control=f3))
+    selects = sn("F2:row", fields="\n".join([
+        sn("F2:select", id="share-kind", label="類型", options=[
+            {"value": "all", "text": "全部類型"}, {"value": "tag", "text": "整個分類"}, {"value": "review", "text": "單一點評"}]),
+        sn("F2:select", id="share-source", label="建立來源", options=[
+            {"value": "all", "text": "全部來源"}, {"value": "web", "text": "從分享網頁新增"}, {"value": "image", "text": "從分享圖片新增"}]),
+    ]))
+    filters = ('<div class="app-share-filters">\n'
+               + sn("F2:control", id="share-q", label="關鍵字", control=f3) + "\n" + selects + "\n</div>")
+    search = sn("F1", id="share-search-form", content=filters)
     more = sn("A1", variant="secondary", id="share-more-btn", text="載入更多").replace("<button", "<button hidden", 1)
     links = stack(
         search,
@@ -389,9 +400,9 @@ def share_web_panel():
         + more + "\n</div>",
     )
     cards = "\n".join([
-        card("01", "web-title", "建立分享連結", "拿到連結的人不用登入就能看", target),
+        card("01", "web-title", "建立分享連結", "拿到連結的人不用登入就能看", target, variant="is-roomy is-wide"),
         card("02", "links-title", "已分享的連結", "搜尋、複製、開啟，或停止分享讓連結失效", links,
-             accent="accent-blue", variant="is-roomy app-share-links"),
+             accent="accent-blue", variant="is-roomy is-wide"),
     ])
     note = sn("C5", icon="!", title="分享網頁不需要登入就能看", warn="is-warn",
               text="連結是隨機產生、猜不到的網址，但轉傳出去任何人都能開。公開頁不顯示座標，照片以內嵌資料顯示、不露出照片網址；停止分享後連結立即失效。")

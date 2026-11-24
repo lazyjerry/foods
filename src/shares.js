@@ -34,6 +34,7 @@ function rowToShare(row) {
     tag: row.tag,
     review_id: row.review_id,
     title: row.kind === "tag" ? `#${row.tag}` : row.title,
+    source: row.source,
     created_at: row.created_at,
   };
 }
@@ -49,17 +50,40 @@ function parseShareCursor(value) {
   return { createdAt: m[1], token: m[2] };
 }
 
+// 建立來源（migration 0010）：web＝分享網頁頁籤，image＝分享圖的「分享網頁網址」開關
+const SOURCES = ["web", "image"];
+const KINDS = ["tag", "review"];
+
+// 篩選值：空字串代表不篩；其他值要在清單裡
+function pickFilter(value, allowed, label) {
+  if (!value) return null;
+  if (!allowed.includes(value)) throw new HttpError(400, `${label}篩選條件不正確`);
+  return value;
+}
+
 // 關鍵字比對分類名稱或點評標題；多個關鍵字全部符合才列出，拆詞規則跟點評搜尋相同。
+// kind（分類／單一點評）與 source（建立來源）可另外篩選。
 export async function listShares(env, url) {
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 10, 1), 50);
   const cursor = parseShareCursor(url.searchParams.get("cursor"));
   const terms = searchTerms(url.searchParams.get("q"));
+  const kind = pickFilter(url.searchParams.get("kind"), KINDS, "類型");
+  const source = pickFilter(url.searchParams.get("source"), SOURCES, "來源");
   const conds = terms.map(() => "instr(lower(coalesce(s.tag, '') || ' ' || coalesce(r.title, '')), ?) > 0");
+  const filters = [];
+  if (kind) {
+    conds.push("s.kind = ?");
+    filters.push(kind);
+  }
+  if (source) {
+    conds.push("s.source = ?");
+    filters.push(source);
+  }
   if (cursor) conds.push("(s.created_at, s.token) < (?, ?)");
   const after = cursor ? [cursor.createdAt, cursor.token] : [];
   const { results } = await env.DB
     .prepare(`${SHARE_SELECT} ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY s.created_at DESC, s.token DESC LIMIT ?`)
-    .bind(...terms, ...after, limit + 1)
+    .bind(...terms, ...filters, ...after, limit + 1)
     .all();
   const rows = results.slice(0, limit);
   const hasMore = results.length > limit;
@@ -70,6 +94,8 @@ export async function listShares(env, url) {
 export async function createShare(request, env) {
   const body = await readJson(request);
   const db = env.DB;
+  const source = body?.source ?? "web";
+  if (!SOURCES.includes(source)) throw new HttpError(422, "建立來源要是分享網頁或分享圖片");
   let row;
   if (body?.kind === "tag") {
     const tag = normalizeTag(body.tag);
@@ -78,7 +104,7 @@ export async function createShare(request, env) {
     if (!used) throw new HttpError(404, `沒有點評屬於分類「${tag}」`);
     row = await db.prepare(`${SHARE_SELECT} WHERE s.kind = 'tag' AND s.tag = ?`).bind(tag).first();
     if (!row) {
-      await db.prepare("INSERT OR IGNORE INTO shares (token, kind, tag, created_at) VALUES (?, 'tag', ?, ?)").bind(newToken(), tag, new Date().toISOString()).run();
+      await db.prepare("INSERT OR IGNORE INTO shares (token, kind, tag, source, created_at) VALUES (?, 'tag', ?, ?, ?)").bind(newToken(), tag, source, new Date().toISOString()).run();
       row = await db.prepare(`${SHARE_SELECT} WHERE s.kind = 'tag' AND s.tag = ?`).bind(tag).first();
     }
   } else if (body?.kind === "review") {
@@ -86,7 +112,7 @@ export async function createShare(request, env) {
     if (!(await db.prepare("SELECT 1 FROM reviews WHERE id = ?").bind(id).first())) throw new HttpError(404, "找不到這筆點評，可能已被刪除");
     row = await db.prepare(`${SHARE_SELECT} WHERE s.kind = 'review' AND s.review_id = ?`).bind(id).first();
     if (!row) {
-      await db.prepare("INSERT OR IGNORE INTO shares (token, kind, review_id, created_at) VALUES (?, 'review', ?, ?)").bind(newToken(), id, new Date().toISOString()).run();
+      await db.prepare("INSERT OR IGNORE INTO shares (token, kind, review_id, source, created_at) VALUES (?, 'review', ?, ?, ?)").bind(newToken(), id, source, new Date().toISOString()).run();
       row = await db.prepare(`${SHARE_SELECT} WHERE s.kind = 'review' AND s.review_id = ?`).bind(id).first();
     }
   } else {

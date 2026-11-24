@@ -94,36 +94,46 @@
   <span class="note-icon" aria-hidden="true">⌁</span>
   <div><strong>分享圖在瀏覽器裡合成</strong><p>相簿或現場拍的照片只用來合成，不會上傳。</p></div>
 </aside></div></div>
-  <div data-tab-panel="web" hidden><div class="stack"><div class="card-grid"><section class="card accent-coral is-roomy" aria-labelledby="web-title"><div class="card-heading">
+  <div data-tab-panel="web" hidden><div class="stack"><div class="card-grid"><section class="card accent-coral is-roomy is-wide" aria-labelledby="web-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">01</span>
   <div><h2 id="web-title">建立分享連結</h2><p>拿到連結的人不用登入就能看</p></div>
 </div>
-<div class="stack"><fieldset class="segmented">
-  <legend class="visually-hidden">分享內容</legend>
-  <label><input type="radio" name="web-kind" value="tag" checked><span>整個分類</span></label>
-  <label><input type="radio" name="web-kind" value="review"><span>單一點評</span></label>
-</fieldset>
+<div class="stack"><div class="app-share-create">
+<div class="field">
+  <span class="field-label" id="web-kind-label">分享內容</span>
+  <div class="app-share-kind" role="radiogroup" aria-labelledby="web-kind-label"><label><input type="radio" name="web-kind" value="tag" checked><span>整個分類</span></label><label><input type="radio" name="web-kind" value="review"><span>單一點評</span></label></div>
+</div>
 <div class="field">
   <label for="web-tag">分類</label>
-  <select id="web-tag" aria-describedby="web-tag-hint"><option value="0">載入中…</option></select>
-  <p class="hint" id="web-tag-hint">列出已用在點評上的分類</p>
+  <select id="web-tag"><option value="0">載入中…</option></select>
 </div>
 <div class="field" hidden>
   <label for="web-review">點評</label>
   <select id="web-review"><option value="0">載入中…</option></select>
 </div>
-<button class="btn is-block" type="button" id="web-create-btn">建立分享連結<span class="btn-arrow" aria-hidden="true">→</span></button>
+<button class="btn" type="button" id="web-create-btn">建立分享連結<span class="btn-arrow" aria-hidden="true">→</span></button>
+</div>
 <p class="status" id="web-status" role="status"></p></div></section>
-<section class="card accent-blue is-roomy app-share-links" aria-labelledby="links-title"><div class="card-heading">
+<section class="card accent-blue is-roomy is-wide" aria-labelledby="links-title"><div class="card-heading">
   <span class="index-badge" aria-hidden="true">02</span>
   <div><h2 id="links-title">已分享的連結</h2><p>搜尋、複製、開啟，或停止分享讓連結失效</p></div>
 </div>
-<div class="stack"><form class="panel" id="share-search-form"><div class="field">
+<div class="stack"><form class="panel" id="share-search-form"><div class="app-share-filters">
+<div class="field">
   <label for="share-q">關鍵字</label>
   <div class="input-group">
   <input id="share-q" type="text" placeholder="例如：拉麵" autocomplete="off" spellcheck="false">
   <button type="submit" id="share-search-btn" aria-label="搜尋已分享的連結">搜尋</button>
 </div>
+</div>
+<div class="field-row"><div class="field">
+  <label for="share-kind">類型</label>
+  <select id="share-kind"><option value="all">全部類型</option><option value="tag">整個分類</option><option value="review">單一點評</option></select>
+</div>
+<div class="field">
+  <label for="share-source">建立來源</label>
+  <select id="share-source"><option value="all">全部來源</option><option value="web">從分享網頁新增</option><option value="image">從分享圖片新增</option></select>
+</div></div>
 </div></form>
 <p class="status" id="share-list-status" role="status"></p>
 <div class="app-share-scroll">

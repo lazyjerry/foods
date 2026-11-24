@@ -119,6 +119,16 @@ tok=$(body "$r" | python3 -c 'import json,sys; print(json.load(sys.stdin)["share
 r=$(req GET "/api/shares?limit=1&q=$q"); n=$(body "$r" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(sum(s["token"]=="'"$tok"'" for s in d["shares"]), "nextCursor" in d)')
 [ "$n" = "1 True" ] && echo "通過：已分享的連結搜尋與分頁欄位" || { echo "失敗：已分享的連結搜尋（$n）"; fail=1; }
 r=$(req GET "/api/shares?cursor=bad"); check "已分享的連結壞游標" 400 "$(code "$r")"
+# 建立來源（migration 0010）：沒帶 source 記成 web；類型與來源可篩選
+has_tok() { body "$1" | python3 -c 'import json,sys; print(sum(s["token"]=="'"$tok"'" for s in json.load(sys.stdin)["shares"]))'; }
+r=$(req GET "/api/shares?q=$q&source=web&kind=tag"); n=$(has_tok "$r")
+[ "$n" = "1" ] && echo "通過：已分享的連結依來源與類型篩選" || { echo "失敗：來源 web＋類型 tag 篩選（$n）$(body "$r")"; fail=1; }
+r=$(req GET "/api/shares?q=$q&source=image"); n=$(has_tok "$r")
+[ "$n" = "0" ] && echo "通過：來源 image 篩掉分享網頁建的連結" || { echo "失敗：來源 image 篩選（$n）"; fail=1; }
+r=$(req GET "/api/shares?q=$q&kind=review"); n=$(has_tok "$r")
+[ "$n" = "0" ] && echo "通過：類型 review 篩掉分類連結" || { echo "失敗：類型 review 篩選（$n）"; fail=1; }
+r=$(req GET "/api/shares?source=bad"); check "已分享的連結壞來源" 400 "$(code "$r")"
+r=$(req POST /api/shares -H "Content-Type: application/json" -d '{"kind":"tag","tag":"冒煙分類","source":"bad"}'); check "建立分享壞來源回 422" 422 "$(code "$r")"
 c=$(curl -s -o "$TMP/pub" -w "%{http_code}" "$BASE/api/public/shares/$tok"); check "公開分享免登入" 200 "$c"
 grep -q "r2_key\|photos/$id/\|blobs/" "$TMP/pub" && { echo "失敗：公開分享露出 key"; fail=1; } || echo "通過：公開分享不含 key"
 python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["reviews"][0]; sys.exit(0 if (r["lat"], r["lng"], r["address"]) == (25.033, 121.5654, "") else 1)' "$TMP/pub" && echo "通過：公開分享帶座標供導航（ADR 022）" || { echo "失敗：公開分享座標或空地址 $(cat "$TMP/pub")"; fail=1; }

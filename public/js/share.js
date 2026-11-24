@@ -369,7 +369,7 @@ async function ensureLink() {
   if (!review || !fields().link || linkTokens.has(review.id)) return;
   const id = review.id;
   try {
-    const { share } = await api("/api/shares", { method: "POST", json: { kind: "review", review_id: id } });
+    const { share } = await api("/api/shares", { method: "POST", json: { kind: "review", review_id: id, source: "image" } });
     linkTokens.set(id, share.token);
     loadShares();
   } catch (err) {
@@ -457,9 +457,11 @@ function webShareText(json) {
   return r ? reviewShareText(r, { by: by && `${by}點評` }) : "";
 }
 
+const SOURCE_TEXT = { web: "從分享網頁新增", image: "從分享圖片新增" }; // 建立來源（migration 0010）
+
 function shareItem(s) {
   return `<li class="app-key">
-  <div class="app-key-body"><strong>${esc(s.title || "（已刪除的點評）")}</strong><span class="app-key-meta">${s.kind === "tag" ? "整個分類" : "單一點評"} · ${esc(shareUrl(s.token))}</span></div>
+  <div class="app-key-body"><strong>${esc(s.title || "（已刪除的點評）")}</strong><span class="app-key-meta">${s.kind === "tag" ? "整個分類" : "單一點評"} · <span class="app-key-source">${SOURCE_TEXT[s.source] || SOURCE_TEXT.web}</span> · ${esc(shareUrl(s.token))}</span></div>
   <div class="actions"><button class="btn is-sm" type="button" data-copy="${s.token}">複製連結</button><button class="btn is-sm secondary" type="button" data-card="${s.token}">分享</button><a class="btn is-sm secondary" href="/s/${s.token}" target="_blank" rel="noopener">開啟</a><button class="btn is-sm secondary" type="button" data-revoke="${s.token}">停止分享</button></div>
 </li>`;
 }
@@ -469,6 +471,8 @@ function shareItem(s) {
 const SHARE_PAGE = 10;
 const shareMore = $("#share-more-btn");
 const shareInput = $("#share-q");
+const shareKind = $("#share-kind");
+const shareSource = $("#share-source");
 let shareQuery = "";
 let shareCursor = null;
 let shareShown = 0;
@@ -489,14 +493,17 @@ async function loadShares(reset = true) {
     const qs = new URLSearchParams({ limit: SHARE_PAGE });
     if (shareCursor) qs.set("cursor", shareCursor);
     if (shareQuery) qs.set("q", shareQuery);
+    if (shareKind.value !== "all") qs.set("kind", shareKind.value);
+    if (shareSource.value !== "all") qs.set("source", shareSource.value);
     const data = await api("/api/shares?" + qs);
     if (mine !== shareSeq) return;
     shareList.insertAdjacentHTML("beforeend", data.shares.map(shareItem).join(""));
     shareShown += data.shares.length;
     shareCursor = data.nextCursor;
     shareMore.hidden = !data.hasMore;
-    if (!shareShown) setStatus(listStatus, shareQuery ? `找不到符合「${shareQuery}」的連結，換個關鍵字試試` : "還沒有分享的連結");
-    else setStatus(listStatus, `${shareQuery ? `「${shareQuery}」的結果：` : ""}已顯示 ${shareShown} 個連結${data.hasMore ? "，捲動看更多" : ""}`, "ok");
+    const filtered = Boolean(shareQuery) || shareKind.value !== "all" || shareSource.value !== "all";
+    if (!shareShown) setStatus(listStatus, filtered ? "找不到符合條件的連結，換個關鍵字或條件試試" : "還沒有分享的連結");
+    else setStatus(listStatus, `${filtered ? "符合條件：" : ""}已顯示 ${shareShown} 個連結${data.hasMore ? "，捲動看更多" : ""}`, "ok");
     shareRecheck();
   } catch (err) {
     if (mine === shareSeq) setStatus(listStatus, err.message, "error");
@@ -512,6 +519,13 @@ $("#share-search-form").addEventListener("submit", (e) => {
   shareQuery = shareInput.value.trim();
   loadShares(true);
 });
+// 類型與來源一改就重查，關鍵字沿用輸入框目前的字
+for (const el of [shareKind, shareSource]) {
+  el.addEventListener("change", () => {
+    shareQuery = shareInput.value.trim();
+    loadShares(true);
+  });
+}
 
 async function loadWebOptions(reviews) {
   webReview.innerHTML = reviews.length
@@ -542,7 +556,7 @@ document.querySelectorAll('input[name="web-kind"]').forEach((r) => r.addEventLis
 
 $("#web-create-btn").addEventListener("click", async () => {
   const kind = webKind();
-  const json = kind === "tag" ? { kind, tag: webTag.value } : { kind, review_id: Number(webReview.value) };
+  const json = kind === "tag" ? { kind, tag: webTag.value, source: "web" } : { kind, review_id: Number(webReview.value), source: "web" };
   if ((kind === "tag" && (webTag.disabled || !webTag.value)) || (kind === "review" && !json.review_id)) {
     setStatus(webStatus, kind === "tag" ? "請先選一個分類" : "請先選一筆點評", "error");
     return;
