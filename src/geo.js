@@ -38,15 +38,18 @@ async function cachedFetch(url, ctx) {
   return data;
 }
 
-export async function geoSearch(url, ctx) {
-  const q = (url.searchParams.get("q") || "").trim();
+// 地址查座標：REST（geoSearch）與 MCP 的 foods_geocode（src/mcp.js）共用
+export async function searchPlaces(input, ctx) {
+  const q = String(input ?? "").trim();
   if (!q) throw new HttpError(400, "請先輸入地址");
   if ([...q].length > 200) throw new HttpError(400, "地址最多 200 字");
   const target = `${BASE}/search?format=jsonv2&addressdetails=1&limit=5&accept-language=zh-TW&q=${encodeURIComponent(q)}`;
   const data = await cachedFetch(target, ctx);
-  return json({
-    results: data.map((p) => ({ lat: Number(p.lat), lng: Number(p.lon), address: formatAddress(p), label: p.display_name })),
-  });
+  return data.map((p) => ({ lat: Number(p.lat), lng: Number(p.lon), address: formatAddress(p), label: p.display_name }));
+}
+
+export async function geoSearch(url, ctx) {
+  return json({ results: await searchPlaces(url.searchParams.get("q"), ctx) });
 }
 
 export async function geoReverse(url, ctx) {
