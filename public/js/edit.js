@@ -1,7 +1,7 @@
 // 新增／編輯點評：基本欄位、地圖與地址互轉、選用評比、照片壓縮上傳。
-import { $, RATING_DEFS, actionToast, api, bindLogout, charCount, esc, formatBytes, hideActionToast, loadSettings, mediaUrl, setStatus, today } from "./common.js";
+import { $, RATING_DEFS, actionToast, api, bindLogout, charCount, esc, formatBytes, hideActionToast, loadSettings, mediaUrl, setStatus, today, watermark } from "./common.js";
 import { createMap } from "./map.js";
-import { compressImage } from "./photo.js";
+import { compressImage, loadImage } from "./photo.js";
 import { tagSuggest } from "./tag-suggest.js";
 
 const FALLBACK = { lat: 25.0478, lng: 121.517 }; // 台北車站：拿不到目前位置時的起點
@@ -536,6 +536,38 @@ async function syncPhotos(id) {
   return errors;
 }
 
+// 分享預覽小圖（src/og.js）：第一張照片縮到長邊 1200、壓上稱呼浮水印（照設定頁的浮水印開關），存成 800 KB 以內的 JPEG，
+// 給公開分享連結的 og:image。第一張是插畫時不做小圖（後端直接用插畫原檔）。改稱呼不重做，重新儲存這筆點評才更新。
+const OG_EDGE = 1200;
+const OG_MAX_BYTES = 800 * 1024;
+const toJpeg = (canvas, q) => new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+
+async function syncOg(id, cover) {
+  setStatus(saveStatus, "產生分享預覽圖…");
+  lockScreen("產生分享預覽圖…");
+  if (!cover || cover.key.startsWith("illust/")) {
+    await api(`/api/reviews/${id}/og`, { method: "DELETE" });
+    return;
+  }
+  const res = await fetch(mediaUrl(cover.key), { credentials: "same-origin" });
+  if (!res.ok) throw new Error(`讀不到第一張照片（${res.status}）`);
+  let canvas = await loadImage(await res.blob(), OG_EDGE);
+  let blob = await toJpeg(canvas, 0.92);
+  if (settings.watermark) {
+    const url = URL.createObjectURL(blob);
+    try {
+      blob = await (await fetch(await watermark(url, settings.nickname.trim() || "吃過筆記"))).blob();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    canvas = await loadImage(blob, OG_EDGE);
+  }
+  for (let q = 0.8; blob && blob.size > OG_MAX_BYTES && q >= 0.4; q -= 0.1) blob = await toJpeg(canvas, q);
+  if (!blob || blob.size > OG_MAX_BYTES) throw new Error("壓不到 800 KB 以內");
+  const q = new URLSearchParams({ source: cover.key, w: canvas.width, h: canvas.height });
+  await api(`/api/reviews/${id}/og?${q}`, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg" } });
+}
+
 // ---------- 載入與儲存 ----------
 function fillReview(r) {
   f.title.value = r.title;
@@ -597,6 +629,11 @@ form.addEventListener("submit", async (e) => {
     const photoErrors = await syncPhotos(reviewId);
     const fresh = await api(`/api/reviews/${reviewId}`);
     fillReview(fresh.review);
+    try {
+      await syncOg(reviewId, fresh.review.photos[0]);
+    } catch (err) {
+      photoErrors.push(`分享預覽圖更新失敗：${err.message}`);
+    }
     if (photoErrors.length) setStatus(saveStatus, `點評已儲存，但有 ${photoErrors.length} 項照片處理失敗：${photoErrors[0]}`, "error");
     else setStatus(saveStatus, "已儲存", "ok");
     if (autoAdded) setStatus(photoStatus, `沒有照片，已自動加入「${auto.label}」插畫`, "ok");

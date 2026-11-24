@@ -12,6 +12,7 @@ const ASSET_ORIGIN = "https://assets.invalid"; // ASSETS binding 只看路徑，
 
 export const isValidKey = (key) => LEGACY_KEY.test(key) || BLOB_KEY.test(key) || ILLUST_KEY.test(key);
 export const isR2Key = (key) => LEGACY_KEY.test(key) || BLOB_KEY.test(key);
+export const isIllustKey = (key) => ILLUST_KEY.test(key);
 export const blobKey = (sha256) => `blobs/${sha256}.jpg`;
 
 export async function sha256Hex(buf) {

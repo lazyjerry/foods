@@ -5,6 +5,7 @@ import { HttpError, errorResponse, json, parseId, readJson } from "./http.js";
 import { geoReverse, geoSearch } from "./geo.js";
 import * as db from "./db.js";
 import * as media from "./media.js";
+import * as og from "./og.js";
 import * as passkey from "./passkey.js";
 import * as shares from "./shares.js";
 import { storageUsage } from "./storage.js";
@@ -149,7 +150,16 @@ async function api(request, env, ctx, url) {
     if (method === "DELETE") {
       const keys = await db.deleteReview(env.DB, id);
       await media.collectKeys(env, keys); // 其他點評還引用的照片檔留著；回收失敗由排程重試
+      await og.deleteOg(env, id).catch((err) => console.error("刪除分享預覽圖失敗", id, err));
       return json({ ok: true, deletedPhotos: keys.length });
+    }
+  }
+  if ((m = pathname.match(/^\/api\/reviews\/(\d+)\/og$/))) {
+    const id = parseId(m[1]);
+    if (method === "PUT") return og.putOg(request, env, id, url);
+    if (method === "DELETE") {
+      await og.deleteOg(env, id);
+      return json({ ok: true });
     }
   }
   if ((m = pathname.match(/^\/api\/reviews\/(\d+)\/photos$/)) && method === "POST") return uploadPhoto(request, env, parseId(m[1]), url);
@@ -197,8 +207,12 @@ export default {
         const res = withSecurityHeaders(await env.ASSETS.fetch(new Request(new URL("/shared", url), request)));
         res.headers.set("Cache-Control", "no-store");
         res.headers.set("X-Robots-Tag", "noindex");
-        return res;
+        // 社群預覽與 JSON-LD 寫進 head（src/shares.js shareHead）；查詢失敗就回沒有預覽的頁面殼，不擋頁面
+        const head = await shares.shareHead(env, shareMatch[1], url.origin).catch((err) => console.error("分享頁 head 產生失敗", err));
+        return head ? shares.injectHead(res, head) : res;
       }
+      const ogMatch = url.pathname.match(/^\/s\/([^/]+)\/og\.jpg$/);
+      if (ogMatch && request.method === "GET") return withSecurityHeaders(await shares.shareOg(env, ogMatch[1]));
 
       const authed = PUBLIC_PATHS.has(url.pathname) || (await isAuthed(request, env));
       if (!authed) {

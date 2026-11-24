@@ -3,6 +3,7 @@
 import { HttpError, json, parseId, readJson } from "./http.js";
 import { getSettings, normalizeTag, parseTags, searchTerms } from "./db.js";
 import { readPhoto } from "./media.js";
+import { ogImage, readOg } from "./og.js";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_REVIEWS = 100;
@@ -171,4 +172,124 @@ export async function publicPhoto(env, token, photoId) {
   if (!file) throw new HttpError(404, "找不到這張照片");
   const buf = await new Response(file.body).arrayBuffer();
   return json({ src: `data:${file.type};base64,${toBase64(buf)}` }, 200, { "X-Robots-Tag": "noindex" });
+}
+
+// ---------- 公開分享頁的 head：社群預覽（Open Graph、Twitter Card）與 JSON-LD ----------
+// 社群平台抓預覽不跑 JS，所以由 Worker 在回傳頁面殼時依 token 把標題、摘要、預覽圖寫進 head。
+// 公開頁仍維持 noindex（ADR 020），JSON-LD 只讓支援的平台預覽多一點資訊，不為搜尋收錄。
+const SITE_NAME = "吃過筆記";
+const oneLine = (s) => String(s || "").replace(/\s+/g, " ").trim();
+const cut = (s, n) => ([...s].length > n ? [...s].slice(0, n - 1).join("") + "…" : s);
+const attr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// 範圍內第一筆有照片的點評的第一張照片（分類頁依頁面上的順序）
+async function scopeCover(db, rows) {
+  const ids = rows.map((r) => r.id);
+  if (!ids.length) return null;
+  const { results } = await db
+    .prepare(`SELECT review_id, r2_key, width, height FROM photos WHERE id IN (SELECT MIN(id) FROM photos WHERE review_id IN (${ids.map(() => "?").join(",")}) GROUP BY review_id)`)
+    .bind(...ids)
+    .all();
+  const byReview = new Map(results.map((p) => [p.review_id, p]));
+  return rows.map((r) => byReview.get(r.id)).find(Boolean) || null;
+}
+
+function reviewJsonLd(r, { nickname, pageUrl, imageUrl }) {
+  const scores = Object.values(JSON.parse(r.ratings || "{}")).filter((n) => Number.isInteger(n));
+  const avg = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    name: r.meal ? `${r.title}｜${r.meal}` : r.title,
+    url: pageUrl,
+    itemReviewed: {
+      "@type": "Restaurant",
+      name: r.title,
+      ...(r.address ? { address: r.address } : {}),
+      ...(Number.isFinite(r.lat) && Number.isFinite(r.lng) ? { geo: { "@type": "GeoCoordinates", latitude: r.lat, longitude: r.lng } } : {}),
+      ...(imageUrl ? { image: imageUrl } : {}),
+    },
+    ...(r.body ? { reviewBody: r.body } : {}),
+    ...(avg ? { reviewRating: { "@type": "Rating", ratingValue: avg, bestRating: 5, worstRating: 1 } } : {}), // 各項評比（1–5 顆心）的平均
+    ...(nickname ? { author: { "@type": "Person", name: nickname } } : {}),
+    datePublished: String(r.created_at).slice(0, 10),
+  };
+}
+
+function tagJsonLd(tag, rows, { pageUrl }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `#${tag}`,
+    url: pageUrl,
+    numberOfItems: rows.length,
+    itemListElement: rows.slice(0, 20).map((r, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: { "@type": "Restaurant", name: r.title, ...(r.address ? { address: r.address } : {}) },
+    })),
+  };
+}
+
+// token 有效時回傳 head 要用的內容；token 無效回 null（頁面照常由 js/shared.js 顯示錯誤）
+export async function shareHead(env, token, origin) {
+  let share;
+  try {
+    share = await findShare(env.DB, token);
+  } catch (err) {
+    if (err instanceof HttpError) return null;
+    throw err;
+  }
+  const rows = await scopeReviews(env.DB, share);
+  const { nickname } = await getSettings(env.DB);
+  const pageUrl = `${origin}/s/${token}`;
+  const image = await ogImage(env, await scopeCover(env.DB, rows));
+  const imageUrl = image ? `${pageUrl}/og.jpg?v=${encodeURIComponent(image.version)}` : "";
+  let title;
+  let description;
+  let jsonLd;
+  if (share.kind === "review" && rows[0]) {
+    const r = rows[0];
+    title = r.meal ? `${r.title}｜${r.meal}` : r.title;
+    const facts = [`NT$ ${Number(r.price).toLocaleString("en-US")}`, r.address].filter(Boolean).join(" · ");
+    description = (nickname ? `${nickname} 的點評：` : "") + cut(oneLine(r.body) || facts, 120);
+    jsonLd = reviewJsonLd(r, { nickname, pageUrl, imageUrl });
+  } else {
+    title = `#${share.tag ?? ""}`;
+    const names = rows.slice(0, 8).map((r) => r.title).join("、") + (rows.length > 8 ? "…" : "");
+    description = rows.length ? `${nickname ? `${nickname} 分享的` : ""} ${rows.length} 筆點評：${names}`.trim() : "這個分類目前沒有點評";
+    jsonLd = tagJsonLd(share.tag ?? "", rows, { pageUrl });
+  }
+  return { title, description, pageUrl, image, imageUrl, jsonLd };
+}
+
+// 把 shareHead() 的內容寫進頁面殼的 head
+export function injectHead(res, h) {
+  const tags = [
+    ["og:type", "article"], ["og:site_name", SITE_NAME], ["og:locale", "zh_TW"], ["og:title", h.title], ["og:description", h.description], ["og:url", h.pageUrl],
+    ...(h.image ? [["og:image", h.imageUrl], ["og:image:type", "image/jpeg"], ["og:image:alt", h.title],
+      ...(h.image.width && h.image.height ? [["og:image:width", h.image.width], ["og:image:height", h.image.height]] : [])] : []),
+  ].map(([p, c]) => `<meta property="${p}" content="${attr(c)}">`);
+  tags.push(
+    `<meta name="twitter:card" content="${h.image ? "summary_large_image" : "summary"}">`,
+    `<meta name="twitter:title" content="${attr(h.title)}">`,
+    `<meta name="twitter:description" content="${attr(h.description)}">`,
+    ...(h.image ? [`<meta name="twitter:image" content="${attr(h.imageUrl)}">`] : []),
+    `<script type="application/ld+json">${JSON.stringify(h.jsonLd).replace(/</g, "\\u003c")}</script>`,
+  );
+  return new HTMLRewriter()
+    .on("title", { element: (el) => el.setInnerContent(`${h.title}｜${SITE_NAME}`) })
+    .on('meta[name="description"]', { element: (el) => el.setAttribute("content", h.description) })
+    .on("head", { element: (el) => el.append(tags.join("\n"), { html: true }) })
+    .transform(res);
+}
+
+// /s/<token>/og.jpg：分享預覽圖，停止分享後就 404
+export async function shareOg(env, token) {
+  const share = await findShare(env.DB, token);
+  const rows = await scopeReviews(env.DB, share);
+  const image = await ogImage(env, await scopeCover(env.DB, rows));
+  const file = image && (await readOg(env, image));
+  if (!file) throw new HttpError(404, "這個分享連結沒有預覽圖");
+  return new Response(file.body, { headers: { "Content-Type": file.type, "Cache-Control": "public, max-age=3600", "X-Robots-Tag": "noindex" } });
 }
