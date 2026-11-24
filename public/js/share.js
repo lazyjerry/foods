@@ -53,33 +53,63 @@ function wrap(text, font, maxW, maxLines) {
   return out;
 }
 
-// 點評內容字多就縮小，讓餐廳、餐點、評比維持大字當重點：字級由大到小試，取第一個能在 BODY_LINES 行內排完的；
-// 最小字級仍太多行時，把換行併成全形空格再排（短句一句一行會佔很多行），最後超過 BODY_MAX_LINES 行才截斷加「…」
-const BODY_STEPS = [[32, 46], [28, 40], [24, 34], [21, 30]]; // [字級, 行高]，1080 寬為準
-const BODY_LINES = 6;
-const BODY_MAX_LINES = 10;
-function bodyRow(text, font, maxW, u) {
-  let size, lh, lines;
-  for ([size, lh] of BODY_STEPS) {
-    lines = wrap(text, font(size), maxW, Infinity);
-    if (lines.length <= BODY_LINES) break;
+// 點評內容的字級依「剩下的高度」決定：上下面板總高不超過照片一半、左右面板是整張高，扣掉其他欄位後才是內容可用的高度。
+// 字級由大到小試，取第一個排得進去的；原文排不進時，把換行併成全形空格再試（短句一句一行會佔很多行）。
+// 仍排不進就回傳 fits: false，由 render() 把整個面板縮小重排；縮到底還是不行，才以最小字級截斷加「…」。
+const BODY_MAX = 32;
+const BODY_MIN = 22; // 再小就跟店名差太多，改由 render() 整個面板一起縮
+const bodyLh = (size, u) => Math.round(size * 1.45) * u;
+function bodyRow(text, font, maxW, u, budget) {
+  const color = token("--card");
+  const joined = text.split(/\n+/).map((s) => s.trim()).filter(Boolean).join("　");
+  for (const t of joined === text ? [text] : [text, joined]) {
+    // 先看最小字級排不排得進，排不進就不必逐級試（面板縮放時每一輪都會跑到這裡）
+    if (wrap(t, font(BODY_MIN), maxW, Infinity).length * bodyLh(BODY_MIN, u) > budget) continue;
+    for (let size = BODY_MAX; size >= BODY_MIN; size -= 2) {
+      const lines = wrap(t, font(size), maxW, Infinity);
+      if (lines.length * bodyLh(size, u) <= budget) return { lines, font: font(size), lh: bodyLh(size, u), color, fits: true };
+    }
   }
-  if (lines.length > BODY_MAX_LINES) {
-    const joined = text.split(/\n+/).map((s) => s.trim()).filter(Boolean).join("　");
-    lines = wrap(joined, font(size), maxW, BODY_MAX_LINES);
-  }
-  return { lines, font: font(size), lh: lh * u, color: token("--card") };
+  const lh = bodyLh(BODY_MIN, u);
+  return { lines: wrap(joined, font(BODY_MIN), maxW, Math.max(1, Math.floor(budget / lh))), font: font(BODY_MIN), lh, color, fits: false };
 }
 
-// W 是文字面板的寬；ref 是字級基準寬（上下面板 1080、左右半寬面板 600，字才不會太小）
-function layout(W, scale, ref = 1080) {
+// 評比：放得進一行就放一行；橫圖的上下面板高度吃緊（不超過照片一半），差一點放不下時縮小字級擠成一行
+// （最多縮到 RATING_MIN_K 倍），差太多或其他排法才換行
+const RATING_MIN_K = 0.6;
+function ratingsRow(items, font, maxW, u, squeeze) {
+  const measure = (f) => {
+    ctx.font = f;
+    return items.map((it) => ctx.measureText(`${it.label} ♥♥♥♥♥`).width);
+  };
+  const widths = measure(font(30, 700));
+  const total = widths.reduce((a, b) => a + b, 0) + 28 * u * (items.length - 1);
+  const k = Math.min(1, (maxW / total) * 0.98);
+  if (k === 1 || (squeeze && k >= RATING_MIN_K)) return { ratings: [items], font: font(30 * k, 700), lh: 46 * u * k, gapW: 28 * u * k };
+  const lines = [[]];
+  let x = 0;
+  items.forEach((it, i) => {
+    if (x && x + widths[i] > maxW) {
+      lines.push([]);
+      x = 0;
+    }
+    lines[lines.length - 1].push(it);
+    x += widths[i] + 28 * u;
+  });
+  return { ratings: lines, font: font(30, 700), lh: 46 * u, gapW: 28 * u };
+}
+
+// W 是文字面板的寬；ref 是字級基準寬（上下面板 1080、左右半寬面板 600，字才不會太小）；
+// limitH 是面板高度上限，點評內容只能用扣掉其他欄位後剩下的高度；純文字分享圖沒有上限，內容最多約 8 行大字的高度；
+// squeeze 為 true（橫圖的上下面板）時評比縮字擠成一行
+function layout(W, scale, { ref = 1080, limitH = null, squeeze = false } = {}) {
   const u = (W / ref) * scale;
   const pad = Math.round(48 * u);
   const family = getComputedStyle(document.body).fontFamily;
   const font = (size, weight = 400) => `${weight} ${Math.round(size * u)}px ${family}`;
   const maxW = W - pad * 2;
   const sel = fields();
-  const rows = []; // {lines, font, size, color, gap} 或 {ratings}
+  const rows = []; // {lines, font, lh, color} 或 {ratings, font, lh, gapW}
   const ink2 = token("--on-ink-2");
 
   if (sel.title) rows.push({ lines: wrap(review.title, font(60, 800), maxW, 2), font: font(60, 800), lh: 72 * u, color: token("--card") });
@@ -89,30 +119,23 @@ function layout(W, scale, ref = 1080) {
   if (sel.address) rows.push({ lines: wrap(review.address || NO_ADDRESS, font(28), maxW, 2), font: font(28), lh: 40 * u, color: ink2 });
   if (sel.ratings) {
     const items = RATING_DEFS.filter(([k]) => review.ratings?.[k]).map(([k, label]) => ({ label, n: review.ratings[k] }));
-    if (items.length) {
-      const f = font(30, 700);
-      ctx.font = f;
-      const lines = [[]];
-      let x = 0;
-      const gapW = 28 * u;
-      for (const it of items) {
-        const w = ctx.measureText(`${it.label} ♥♥♥♥♥`).width;
-        if (x && x + w > maxW) {
-          lines.push([]);
-          x = 0;
-        }
-        lines[lines.length - 1].push(it);
-        x += w + gapW;
-      }
-      rows.push({ ratings: lines, font: f, lh: 46 * u, gapW });
-    }
+    if (items.length) rows.push(ratingsRow(items, font, maxW, u, squeeze));
   }
-  if (sel.body && review.body.trim()) rows.push(bodyRow(review.body.trim(), font, maxW, u));
-  rows.push({ lines: ["吃過筆記"], font: font(22, 800), lh: 34 * u, color: ink2, brand: true });
+  const brand = { lines: ["吃過筆記"], font: font(22, 800), lh: 34 * u, color: ink2, brand: true };
+  rows.push(brand);
 
   const gap = 14 * u;
-  const height = pad * 2 + rows.reduce((s, r) => s + (r.ratings ? r.ratings.length : r.lines.length) * r.lh, 0) + gap * (rows.length - 1);
-  return { rows, pad, gap, height: Math.ceil(height), u };
+  const rowH = (r) => (r.ratings ? r.ratings.length : r.lines.length) * r.lh;
+  const body = sel.body ? review.body.trim() : "";
+  let fits = true;
+  if (body) {
+    const others = pad * 2 + rows.reduce((s, r) => s + rowH(r), 0) + gap * rows.length; // 加上內容那列後共 rows.length 個間距
+    const row = bodyRow(body, font, maxW, u, limitH ? limitH - others : 8 * 46 * u);
+    fits = row.fits;
+    rows.splice(rows.length - 1, 0, row);
+  }
+  const height = pad * 2 + rows.reduce((s, r) => s + rowH(r), 0) + gap * (rows.length - 1);
+  return { rows, pad, gap, height: Math.ceil(height), u, fits };
 }
 
 function render() {
@@ -128,12 +151,12 @@ function render() {
   // 左方／右方：面板占照片一半寬、整張高，文字垂直置中；純文字分享圖沒有照片，一律照上下排
   const side = Boolean(base) && (pos === "left" || pos === "right");
   const PW = side ? Math.round(W / 2) : W;
-  const fit = (s) => (side ? layout(PW, s, 600) : layout(W, s));
+  // 面板高度上限：上下不蓋過照片一半，左右是整張高；排不進就整個面板縮小重排，最多縮到 0.4 倍
+  const limit = base ? (side ? base.height : Math.floor(base.height * 0.5)) : null;
+  const squeeze = Boolean(base) && !side && base.width > base.height;
+  const fit = (s) => (side ? layout(PW, s, { ref: 600, limitH: limit }) : layout(W, s, { limitH: limit, squeeze }));
   let L = fit(1);
-  if (base) {
-    const limit = side ? base.height : base.height * 0.85;
-    for (let s = 0.85; L.height > limit && s > 0.3; s -= 0.1) L = fit(s);
-  }
+  for (let s = 0.95; base && !(L.fits && L.height <= limit) && s >= 0.4; s -= 0.05) L = fit(s);
   const H = base ? base.height : L.height;
   canvas.width = W;
   canvas.height = H;
