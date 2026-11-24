@@ -19,13 +19,14 @@ export const SHARE_FIELDS = [
   ["ratings", "評比"],
   ["body", "點評內容"],
   ["nickname", "稱呼"],
+  ["link", "分享網頁網址"],
 ];
 
 export const DEFAULT_SETTINGS = {
   nickname: "",
   defaultHearts: 3,
   ratingsDefaultOn: false,
-  shareFields: Object.fromEntries(SHARE_FIELDS.map(([k]) => [k, true])),
+  shareFields: Object.fromEntries(SHARE_FIELDS.map(([k]) => [k, k !== "link"])), // 分享網頁網址會公開點評，預設關
   sharePosition: "bottom",
   maxEdge: 1600,
   quality: 80,

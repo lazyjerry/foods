@@ -22,7 +22,8 @@ NAV = [("/", "點評", "index"), ("/edit", "新增", "edit"), ("/photos", "照�
        ("/share", "分享", "share"), ("/settings", "設定", "settings"), ("/stats", "統計", "stats")]
 
 SHARE_FIELDS = [("title", "餐廳"), ("meal", "餐點"), ("price", "價格"), ("date", "用餐日期"), ("address", "地址"),
-                ("ratings", "評比"), ("body", "點評內容"), ("nickname", "稱呼")]
+                ("ratings", "評比"), ("body", "點評內容"), ("nickname", "稱呼"),
+                ("link", "分享網頁網址")]
 
 # 編輯頁「選擇插畫」可選的圖（public/img/illustrations/），檔名與顯示名稱
 # 插畫檔名只增不改不刪，從這裡拿掉只會不再出現在對話框、檔案要留著（AGENTS.md〈插畫檔案〉）

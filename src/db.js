@@ -3,13 +3,13 @@
 import { HttpError } from "./http.js";
 
 export const RATING_KEYS = ["taste", "price", "experience", "ambience", "service", "portion"];
-export const SHARE_FIELD_KEYS = ["title", "meal", "price", "date", "address", "ratings", "body", "nickname"];
+export const SHARE_FIELD_KEYS = ["title", "meal", "price", "date", "address", "ratings", "body", "nickname", "link"];
 
 export const DEFAULT_SETTINGS = {
   nickname: "",
   defaultHearts: 3,
   ratingsDefaultOn: false,
-  shareFields: Object.fromEntries(SHARE_FIELD_KEYS.map((k) => [k, true])),
+  shareFields: Object.fromEntries(SHARE_FIELD_KEYS.map((k) => [k, k !== "link"])), // 分享網頁網址會公開點評，預設關
   sharePosition: "bottom",
   maxEdge: 1600,
   quality: 80,

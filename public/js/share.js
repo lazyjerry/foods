@@ -121,8 +121,19 @@ function layout(W, scale, { ref = 1080, limitH = null, squeeze = false } = {}) {
     const items = RATING_DEFS.filter(([k]) => review.ratings?.[k]).map(([k, label]) => ({ label, n: review.ratings[k] }));
     if (items.length) rows.push(ratingsRow(items, font, maxW, u, squeeze));
   }
-  const brand = { lines: ["吃過筆記"], font: font(22, 800), lh: 34 * u, color: ink2, brand: true };
-  rows.push(brand);
+  // 分享網頁網址放在「吃過筆記」同一行；寬度不夠就自成一行，差一點放不下時縮字擠成一行（最多 0.6 倍），差太多才換行
+  const link = linkText();
+  const bf = font(22, 800);
+  ctx.font = bf;
+  const sameLine = link && ctx.measureText(`吃過筆記　${link}`).width <= maxW;
+  const bodyAt = rows.length; // 點評內容插在品牌列之前
+  rows.push({ lines: [sameLine ? `吃過筆記　${link}` : "吃過筆記"], font: bf, lh: 34 * u, color: ink2, brand: true });
+  if (link && !sameLine) {
+    const k = Math.min(1, (maxW / ctx.measureText(link).width) * 0.98);
+    rows.push(k >= 0.6
+      ? { lines: [link], font: font(22 * k, 800), lh: 34 * u * k, color: ink2 }
+      : { lines: wrap(link, bf, maxW, 3), font: bf, lh: 34 * u, color: ink2 });
+  }
 
   const gap = 14 * u;
   const rowH = (r) => (r.ratings ? r.ratings.length : r.lines.length) * r.lh;
@@ -132,7 +143,7 @@ function layout(W, scale, { ref = 1080, limitH = null, squeeze = false } = {}) {
     const others = pad * 2 + rows.reduce((s, r) => s + rowH(r), 0) + gap * rows.length; // 加上內容那列後共 rows.length 個間距
     const row = bodyRow(body, font, maxW, u, limitH ? limitH - others : 8 * 46 * u);
     fits = row.fits;
-    rows.splice(rows.length - 1, 0, row);
+    rows.splice(bodyAt, 0, row);
   }
   const height = pad * 2 + rows.reduce((s, r) => s + rowH(r), 0) + gap * (rows.length - 1);
   return { rows, pad, gap, height: Math.ceil(height), u, fits };
@@ -306,6 +317,7 @@ async function loadReview(id) {
     history.replaceState(null, "", `/share?id=${id}${new URLSearchParams(location.search).get("tab") === "web" ? "&tab=web" : ""}`);
     renderPicks();
     await applySource({ open: false });
+    ensureLink();
     setStatus(outStatus, "預覽已更新", "ok");
   } catch (err) {
     setStatus(outStatus, err.message, "error");
@@ -341,8 +353,32 @@ async function loadList() {
 
 select.addEventListener("change", () => loadReview(Number(select.value)));
 for (const [k] of SHARE_FIELDS) $(`#share-${k}`).addEventListener("change", render);
+$("#share-link").addEventListener("change", ensureLink);
 document.querySelectorAll('input[name="position"]').forEach((r) => r.addEventListener("change", render));
 opacity.addEventListener("input", render);
+
+// ---------- 分享網頁網址 ----------
+// 開關打開時替這筆點評建立公開連結（ADR 020；已有就沿用同一個，POST /api/shares 對同一筆點評是冪等的），
+// 網址壓在分享圖最下方，也會出現在「已分享的連結」。只在打開開關、切換點評、下載時建立；
+// 停止分享後不自動重建，避免剛停掉的點評又被公開。
+const linkTokens = new Map(); // 點評 id → token
+const linkText = () => {
+  const t = review && fields().link && linkTokens.get(review.id);
+  return t ? shareUrl(t).replace(/^https?:\/\//, "") : "";
+};
+
+async function ensureLink() {
+  if (!review || !fields().link || linkTokens.has(review.id)) return;
+  const id = review.id;
+  try {
+    const { share } = await api("/api/shares", { method: "POST", json: { kind: "review", review_id: id } });
+    linkTokens.set(id, share.token);
+    loadShares();
+  } catch (err) {
+    setStatus(outStatus, `分享網址建立失敗：${err.message}`, "error");
+  }
+  if (review?.id === id) render();
+}
 
 // ---------- 輸出 ----------
 function toBlob() {
@@ -353,6 +389,7 @@ const outName = () => `${(review?.title || "food").replace(/[\\/:*?"<>|]/g, "").
 $("#download-btn").addEventListener("click", async () => {
   if (!review) return setStatus(outStatus, "請先選一筆點評", "error");
   try {
+    await ensureLink();
     const url = URL.createObjectURL(await toBlob());
     const a = document.createElement("a");
     a.href = url;
@@ -376,7 +413,9 @@ $("#share-btn").addEventListener("click", async () => {
     // 文字沿用分享圖的欄位開關，圖上關掉的欄位文字也不帶
     const sel = fields();
     const by = sel.nickname && settings.nickname ? `${settings.nickname} 的點評` : "";
-    await navigator.share({ files: [file], title: review.title, text: reviewShareText(review, { by, show: sel }) });
+    const token = sel.link && linkTokens.get(review.id);
+    const text = [reviewShareText(review, { by, show: sel }), token ? shareUrl(token) : ""].filter(Boolean).join("\n");
+    await navigator.share({ files: [file], title: review.title, text });
     setStatus(outStatus, "已開啟分享", "ok");
   } catch (err) {
     if (err.name !== "AbortError") setStatus(outStatus, err.message, "error");
@@ -537,6 +576,8 @@ shareList.addEventListener("click", async (e) => {
     if (!confirm("停止分享後，這個連結會立即失效。確定停止？")) return;
     try {
       await api(`/api/shares/${encodeURIComponent(revoke.dataset.revoke)}`, { method: "DELETE" });
+      for (const [id, t] of linkTokens) if (t === revoke.dataset.revoke) linkTokens.delete(id);
+      render(); // 分享圖上的網址已失效，拿掉；要再開開關或換點評才會重建
       await loadShares();
       setStatus(listStatus, "已停止分享", "ok");
     } catch (err) {
