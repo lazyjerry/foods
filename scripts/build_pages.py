@@ -322,7 +322,8 @@ def share_switches(prefix):
 
 
 def position_segment(name):
-    return sn("A5", legend="浮水印位置", name=name, options=[{"value": "bottom", "text": "下方", "checked": True}, {"value": "top", "text": "上方"}])
+    return sn("A5", legend="浮水印位置", name=name, options=[{"value": "bottom", "text": "下方", "checked": True}, {"value": "top", "text": "上方"},
+                                                          {"value": "left", "text": "左方"}, {"value": "right", "text": "右方"}])
 
 
 def build_share():

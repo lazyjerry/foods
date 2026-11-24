@@ -27,13 +27,15 @@ const position = () => document.querySelector('input[name="position"]:checked')?
 const fields = () => Object.fromEntries(SHARE_FIELDS.map(([k]) => [k, $(`#share-${k}`).checked]));
 
 // ---------- 文字排版 ----------
+// 不放在行首的標點：遇到時讓它掛在上一行尾（會略超出 maxW，落在面板內距裡）
+const NO_LINE_START = /[，。、；：！？）」』》〉,.;:!?)\]]/;
 function wrap(text, font, maxW, maxLines) {
   ctx.font = font;
   const lines = [];
   for (const para of String(text).split("\n")) {
     let line = "";
     for (const ch of para) {
-      if (ctx.measureText(line + ch).width > maxW && line) {
+      if (ctx.measureText(line + ch).width > maxW && line && !NO_LINE_START.test(ch)) {
         lines.push(line);
         line = ch.trim() ? ch : "";
       } else {
@@ -51,8 +53,27 @@ function wrap(text, font, maxW, maxLines) {
   return out;
 }
 
-function layout(W, scale) {
-  const u = (W / 1080) * scale;
+// 點評內容字多就縮小，讓餐廳、餐點、評比維持大字當重點：字級由大到小試，取第一個能在 BODY_LINES 行內排完的；
+// 最小字級仍太多行時，把換行併成全形空格再排（短句一句一行會佔很多行），最後超過 BODY_MAX_LINES 行才截斷加「…」
+const BODY_STEPS = [[32, 46], [28, 40], [24, 34], [21, 30]]; // [字級, 行高]，1080 寬為準
+const BODY_LINES = 6;
+const BODY_MAX_LINES = 10;
+function bodyRow(text, font, maxW, u) {
+  let size, lh, lines;
+  for ([size, lh] of BODY_STEPS) {
+    lines = wrap(text, font(size), maxW, Infinity);
+    if (lines.length <= BODY_LINES) break;
+  }
+  if (lines.length > BODY_MAX_LINES) {
+    const joined = text.split(/\n+/).map((s) => s.trim()).filter(Boolean).join("　");
+    lines = wrap(joined, font(size), maxW, BODY_MAX_LINES);
+  }
+  return { lines, font: font(size), lh: lh * u, color: token("--card") };
+}
+
+// W 是文字面板的寬；ref 是字級基準寬（上下面板 1080、左右半寬面板 600，字才不會太小）
+function layout(W, scale, ref = 1080) {
+  const u = (W / ref) * scale;
   const pad = Math.round(48 * u);
   const family = getComputedStyle(document.body).fontFamily;
   const font = (size, weight = 400) => `${weight} ${Math.round(size * u)}px ${family}`;
@@ -86,7 +107,7 @@ function layout(W, scale) {
       rows.push({ ratings: lines, font: f, lh: 46 * u, gapW });
     }
   }
-  if (sel.body && review.body.trim()) rows.push({ lines: wrap(review.body.trim(), font(32), maxW, 8), font: font(32), lh: 48 * u, color: token("--card") });
+  if (sel.body && review.body.trim()) rows.push(bodyRow(review.body.trim(), font, maxW, u));
   rows.push({ lines: ["吃過筆記"], font: font(22, 800), lh: 34 * u, color: ink2, brand: true });
 
   const gap = 14 * u;
@@ -103,31 +124,39 @@ function render() {
     return;
   }
   const W = base ? base.width : 1080;
-  let L = layout(W, 1);
+  const pos = position();
+  // 左方／右方：面板占照片一半寬、整張高，文字垂直置中；純文字分享圖沒有照片，一律照上下排
+  const side = Boolean(base) && (pos === "left" || pos === "right");
+  const PW = side ? Math.round(W / 2) : W;
+  const fit = (s) => (side ? layout(PW, s, 600) : layout(W, s));
+  let L = fit(1);
   if (base) {
-    for (let s = 0.85; L.height > base.height * 0.85 && s > 0.3; s -= 0.1) L = layout(W, s);
+    const limit = side ? base.height : base.height * 0.85;
+    for (let s = 0.85; L.height > limit && s > 0.3; s -= 0.1) L = fit(s);
   }
   const H = base ? base.height : L.height;
   canvas.width = W;
   canvas.height = H;
   if (base) ctx.drawImage(base, 0, 0);
-  const top = base && position() === "bottom" ? H - L.height : 0;
+  const left = side && pos === "right" ? W - PW : 0;
+  const top = side ? 0 : base && pos === "bottom" ? H - L.height : 0;
 
   ctx.globalAlpha = base ? Number(opacity.value) / 100 : 1;
   ctx.fillStyle = token("--ink");
-  ctx.fillRect(0, top, W, L.height);
+  ctx.fillRect(left, top, PW, side ? H : L.height);
   ctx.globalAlpha = 1;
   ctx.fillStyle = token("--coral");
   const bar = Math.max(4, Math.round(10 * L.u));
-  ctx.fillRect(0, position() === "bottom" || !base ? top : top + L.height - bar, W, bar);
+  if (side) ctx.fillRect(pos === "left" ? PW - bar : left, 0, bar, H); // 色條畫在面板朝照片的那一側
+  else ctx.fillRect(0, pos === "bottom" || !base ? top : top + L.height - bar, W, bar);
 
   ctx.textBaseline = "top";
-  let y = top + L.pad;
+  let y = (side ? Math.max(0, Math.round((H - L.height) / 2)) : top) + L.pad;
   for (const row of L.rows) {
     ctx.font = row.font;
     if (row.ratings) {
       for (const line of row.ratings) {
-        let x = L.pad;
+        let x = left + L.pad;
         for (const it of line) {
           const parts = [[`${it.label} `, token("--card")], ["♥︎".repeat(it.n), token("--coral")], ["♡︎".repeat(5 - it.n), token("--on-ink-2")]]; // FE0E：強制文字字形，才吃得到 fillStyle
           for (const [t, c] of parts) {
@@ -142,7 +171,7 @@ function render() {
     } else {
       ctx.fillStyle = row.color;
       for (const line of row.lines) {
-        ctx.fillText(line, L.pad, y + (row.lh - parseInt(row.font.split(" ")[1], 10)) / 2);
+        ctx.fillText(line, left + L.pad, y + (row.lh - parseInt(row.font.split(" ")[1], 10)) / 2);
         y += row.lh;
       }
     }
@@ -151,7 +180,8 @@ function render() {
   drawWatermark(W, H);
 }
 
-// 稱呼浮水印（設定頁 02 照片壓縮卡的開關，預設開啟）：只壓在照片上、放在文字面板對面的右側角落；
+// 稱呼浮水印（設定頁 02 照片壓縮卡的開關，預設開啟）：只壓在照片上、避開文字面板的角落
+// （面板在下／左 → 右上角；在上 → 右下角；在右 → 左上角）；
 // 純文字分享圖沒有照片、稱呼留空時都不壓。dataset.watermark 記下壓了什麼，給 e2e 檢查。
 function drawWatermark(W, H) {
   const text = base && settings.watermark ? settings.nickname.trim() : "";
@@ -161,15 +191,16 @@ function drawWatermark(W, H) {
   const pad = Math.round(40 * u);
   ctx.save();
   ctx.font = `800 ${Math.max(16, Math.round(40 * u))}px ${getComputedStyle(document.body).fontFamily}`;
-  ctx.textAlign = "right";
-  const atTop = position() === "bottom"; // 面板在下 → 右上角；面板在上 → 右下角
+  const atTop = position() !== "top";
+  const atLeft = position() === "right";
+  ctx.textAlign = atLeft ? "left" : "right";
   ctx.textBaseline = atTop ? "top" : "bottom";
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur = Math.round(8 * u);
   ctx.shadowOffsetY = Math.round(2 * u);
   ctx.globalAlpha = 0.85;
   ctx.fillStyle = token("--white") || "#fff";
-  ctx.fillText(text, W - pad, atTop ? pad : H - pad);
+  ctx.fillText(text, atLeft ? pad : W - pad, atTop ? pad : H - pad);
   ctx.restore();
 }
 

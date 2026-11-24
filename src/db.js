@@ -356,7 +356,7 @@ export function sanitizeSettings(input) {
   if (input.shareFields && typeof input.shareFields === "object") {
     for (const k of SHARE_FIELD_KEYS) if (typeof input.shareFields[k] === "boolean") s.shareFields[k] = input.shareFields[k];
   }
-  if (["top", "bottom"].includes(input.sharePosition)) s.sharePosition = input.sharePosition;
+  if (["top", "bottom", "left", "right"].includes(input.sharePosition)) s.sharePosition = input.sharePosition;
   if ([1280, 1600, 2048].includes(Number(input.maxEdge))) s.maxEdge = Number(input.maxEdge);
   const q = Number(input.quality);
   if (Number.isInteger(q) && q >= 60 && q <= 95) s.quality = q;
