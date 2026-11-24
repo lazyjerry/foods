@@ -89,8 +89,14 @@ with sync_playwright() as p:
     page.fill("#title", "E2E 測試拉麵")
     page.fill("#meal", "E2E叉燒拉麵")
     page.fill("#price", "260")
+    page.fill("#body", "一\n二\n三\n四")
+    page.focus("#body")
+    page.keyboard.press("End")
+    page.keyboard.press("Enter")
+    page.keyboard.type("五")
+    ok("點評最多 4 行：滿 4 行按 Enter 不換行", page.input_value("#body") == "一\n二\n三\n四五" and page.get_attribute("#body", "rows") == "4", repr(page.input_value("#body")))
     page.fill("#body", "叉燒很厚，湯偏鹹。")
-    ok("字數計數", page.text_content("#body-hint") == "9／2000 字", page.text_content("#body-hint"))
+    ok("字數計數", page.text_content("#body-hint") == "9／2000 字・1／4 行", page.text_content("#body-hint"))
     ok("餐廳、餐點限 256 字並顯示計數",
        page.get_attribute("#title", "maxlength") == "256" and page.text_content("#title-hint") == "8／256 字"
        and page.get_attribute("#meal", "maxlength") == "256" and page.text_content("#meal-hint") == "7／256 字",

@@ -54,24 +54,22 @@ function wrap(text, font, maxW, maxLines) {
 }
 
 // 點評內容的字級依「剩下的高度」決定：上下面板總高不超過照片一半、左右面板是整張高，扣掉其他欄位後才是內容可用的高度。
-// 字級由大到小試，取第一個排得進去的；原文排不進時，把換行併成全形空格再試（短句一句一行會佔很多行）。
-// 仍排不進就回傳 fits: false，由 render() 把整個面板縮小重排；縮到底還是不行，才以最小字級截斷加「…」。
+// 字級由大到小試，取第一個排得進去的；換行一律照原文保留（點評最多 4 行，見 edit.js 的 BODY_MAX_LINES）。
+// 最小字級仍排不進就回傳 fits: false，由 render() 把整個面板縮小重排；縮到底還是不行，才以最小字級截斷加「…」。
 const BODY_MAX = 32;
 const BODY_MIN = 22; // 再小就跟店名差太多，改由 render() 整個面板一起縮
 const bodyLh = (size, u) => Math.round(size * 1.45) * u;
 function bodyRow(text, font, maxW, u, budget) {
   const color = token("--card");
-  const joined = text.split(/\n+/).map((s) => s.trim()).filter(Boolean).join("　");
-  for (const t of joined === text ? [text] : [text, joined]) {
-    // 先看最小字級排不排得進，排不進就不必逐級試（面板縮放時每一輪都會跑到這裡）
-    if (wrap(t, font(BODY_MIN), maxW, Infinity).length * bodyLh(BODY_MIN, u) > budget) continue;
+  // 先看最小字級排不排得進，排不進就不必逐級試（面板縮放時每一輪都會跑到這裡）
+  if (wrap(text, font(BODY_MIN), maxW, Infinity).length * bodyLh(BODY_MIN, u) <= budget) {
     for (let size = BODY_MAX; size >= BODY_MIN; size -= 2) {
-      const lines = wrap(t, font(size), maxW, Infinity);
+      const lines = wrap(text, font(size), maxW, Infinity);
       if (lines.length * bodyLh(size, u) <= budget) return { lines, font: font(size), lh: bodyLh(size, u), color, fits: true };
     }
   }
   const lh = bodyLh(BODY_MIN, u);
-  return { lines: wrap(joined, font(BODY_MIN), maxW, Math.max(1, Math.floor(budget / lh))), font: font(BODY_MIN), lh, color, fits: false };
+  return { lines: wrap(text, font(BODY_MIN), maxW, Math.max(1, Math.floor(budget / lh))), font: font(BODY_MIN), lh, color, fits: false };
 }
 
 // 評比：放得進一行就放一行；橫圖的上下面板高度吃緊（不超過照片一半），差一點放不下時縮小字級擠成一行

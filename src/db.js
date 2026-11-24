@@ -3,6 +3,7 @@
 import { HttpError } from "./http.js";
 
 export const RATING_KEYS = ["taste", "price", "experience", "ambience", "service", "portion"];
+export const BODY_MAX_LINES = 4; // 點評最多幾行：分享圖要保留原文換行，行數多了字會縮得太小（public/js/edit.js 同名常數）
 export const SHARE_FIELD_KEYS = ["title", "meal", "price", "date", "address", "ratings", "body", "nickname", "link"];
 
 export const DEFAULT_SETTINGS = {
@@ -44,6 +45,7 @@ export function validateReview(input) {
 
   const body = typeof input?.body === "string" ? input.body.replace(/\r\n/g, "\n") : "";
   if (chars(body) > 2000) errors.body = `點評最多 2000 字（目前 ${chars(body)} 字）`;
+  else if (body.split("\n").length > BODY_MAX_LINES) errors.body = `點評最多 ${BODY_MAX_LINES} 行（目前 ${body.split("\n").length} 行），請合併幾行`;
 
   const lat = num(input?.lat);
   const lng = num(input?.lng);

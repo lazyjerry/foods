@@ -227,7 +227,8 @@ def build_edit():
     price = attr(sn("F2", id="price", label="價格", type="number", inputmode="numeric", num="num", required=True, hint="新台幣，整數"),
                  'id="price"', 'min="0" max="1000000" step="1"')
     visited = sn("F2", id="visited-on", label="用餐日期", type="date", num="num app-date")
-    body = sn("F2:textarea", id="body", label="點評", maxlength="2000", placeholder="味道、份量、服務…", hint="0／2000 字")
+    body = sn("F2:textarea", id="body", label="點評", maxlength="2000", placeholder="味道、份量、服務…", hint="0／2000 字・0／4 行")
+    body = attr(body, '<textarea id="body"', 'rows="4"')  # 點評最多 4 行（public/js/edit.js 的 BODY_MAX_LINES）
     basic = stack(title, meal, sn("F2:row", fields=price + visited), body, tags_block())
 
     lat = attr(sn("F2", id="lat", label="緯度", type="number", num="num", required=True), 'id="lat"', 'min="-90" max="90" step="any"')

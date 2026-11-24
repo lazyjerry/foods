@@ -65,9 +65,15 @@ function unlockScreen() {
 }
 
 // ---------- 基本欄位 ----------
+// 點評最多 4 行（src/db.js 同名常數）：分享圖照原文換行排版，行數多了字會縮得太小
+const BODY_MAX_LINES = 4;
+const lineCount = (s) => (s ? s.split("\n").length : 0);
+
 function updateCount() {
   const n = charCount(f.body.value);
-  $("#body-hint").textContent = `${n}／2000 字`;
+  const lines = lineCount(f.body.value);
+  $("#body-hint").textContent = `${n}／2000 字・${lines}／${BODY_MAX_LINES} 行`;
+  if (lines > BODY_MAX_LINES) markInvalid(f.body, true); // 舊點評可能超過，標出來讓使用者合併
   for (const [el, hint] of COUNTED) hint.textContent = hint.textContent.replace(/^\d+／\d+ 字/, countText(el.value));
 }
 
@@ -616,6 +622,23 @@ $("#delete-btn").addEventListener("click", async () => {
 
 for (const el of Object.values(f)) el.addEventListener("input", () => markInvalid(el, false));
 f.body.addEventListener("input", updateCount);
+// 已滿 4 行時擋掉換行（選取範圍內有換行、按下去行數不會變多的情況放行）
+f.body.addEventListener("beforeinput", (e) => {
+  if (e.inputType !== "insertLineBreak" && e.inputType !== "insertParagraph") return;
+  const v = f.body.value;
+  const next = v.slice(0, f.body.selectionStart) + "\n" + v.slice(f.body.selectionEnd);
+  if (lineCount(next) > BODY_MAX_LINES && lineCount(next) > lineCount(v)) e.preventDefault();
+});
+// 貼上或輸入法帶進多行時，第 4 行之後的內容併進第 4 行，不直接丟掉
+f.body.addEventListener("input", (e) => {
+  if (e.inputType === undefined || !/^insert/.test(e.inputType)) return;
+  const ls = f.body.value.split("\n");
+  if (ls.length <= BODY_MAX_LINES) return;
+  const pos = f.body.selectionStart;
+  f.body.value = [...ls.slice(0, BODY_MAX_LINES - 1), ls.slice(BODY_MAX_LINES - 1).join(" ")].join("\n");
+  f.body.setSelectionRange(pos, pos);
+  updateCount();
+});
 for (const [el] of COUNTED) el.addEventListener("input", updateCount);
 window.addEventListener("beforeunload", (e) => {
   if (photos.some((p) => p.kind === "new")) e.preventDefault();
