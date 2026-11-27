@@ -1,5 +1,6 @@
 // 各頁共用：API 呼叫、登入導向、評比與分享欄位定義、設定預設值、小工具。
 // 評比類別要和 src/db.js 的 RATING_KEYS 一致。
+import { clearAllDrafts } from "./draft.js";
 
 export const RATING_DEFS = [
   ["taste", "口味"],
@@ -142,7 +143,8 @@ export function bindLogout() {
   const btn = $("#logout-btn");
   if (!btn) return;
   btn.addEventListener("click", async () => {
-    if (!confirm("確定要登出嗎？")) return;
+    if (!confirm("確定要登出嗎？這台裝置上還沒儲存的點評草稿也會清掉。")) return;
+    await clearAllDrafts();
     try {
       await api("/api/logout", { method: "POST" });
     } finally {

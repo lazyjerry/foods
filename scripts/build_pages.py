@@ -262,7 +262,9 @@ def build_edit():
         sn("A1", variant="is-block", type="submit", id="save-btn", text="儲存點評", arrow=True),
         sn("F10", id="save-status", role="status"),
         sn("A2", buttons=sn("A1:link", variant="secondary", href="/share", text="做成分享圖").replace("<a ", '<a id="share-link" hidden ', 1)
-           + sn("A1", variant="is-link", id="delete-btn", text="刪除這筆點評").replace("<button", "<button hidden", 1)),
+           + sn("A1", variant="is-link", id="delete-btn", text="刪除這筆點評").replace("<button", "<button hidden", 1)
+           # 草稿（public/js/draft.js）：有暫存在這台裝置、還沒儲存的修改時才顯示
+           + sn("A1", variant="is-link", id="draft-discard-btn", text="捨棄草稿").replace("<button", "<button hidden", 1)),
     )
 
     cards = "\n".join([
@@ -270,7 +272,7 @@ def build_edit():
         card("02", "location-title", "位置", "點選地圖或拖曳標記，地址與座標互轉", location, accent="accent-blue"),
         card("03", "ratings-title", "評比（選用）", "每項 1–5 顆心，也可略過", ratings, accent="accent-violet"),
         card("04", "photos-title", "照片", "上傳前在裝置上壓縮，不保留原檔", photos, accent="accent-green"),
-        card("05", "save-title", "儲存", "照片在儲存時一併上傳", save, variant="is-roomy is-wide"),
+        card("05", "save-title", "儲存", "照片在儲存時一併上傳；還沒儲存的修改會先暫存在這台裝置", save, variant="is-roomy is-wide"),
     ])
     main = sn("L4", cards=cards) + "\n" + privacy_note()
     page("edit.html", "新增點評｜記錄餐廳、餐點、價格、位置、評比與照片", "新增或編輯一筆食物點評",

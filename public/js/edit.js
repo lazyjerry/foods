@@ -1,5 +1,6 @@
 // 新增／編輯點評：基本欄位、地圖與地址互轉、選用評比、照片壓縮上傳。
-import { $, RATING_DEFS, actionToast, api, bindLogout, charCount, esc, formatBytes, hideActionToast, loadSettings, mediaUrl, setStatus, today, watermark } from "./common.js";
+import { $, RATING_DEFS, actionToast, api, bindLogout, charCount, esc, formatBytes, hideActionToast, loadSettings, mediaUrl, setStatus, today, toast, watermark } from "./common.js";
+import { clearDraft, deleteBlob, getBlob, isStale, loadDraft, putBlob, restorePhotos, saveDraft, sweepBlobs } from "./draft.js";
 import { createMap } from "./map.js";
 import { compressImage, loadImage } from "./photo.js";
 import { tagSuggest } from "./tag-suggest.js";
@@ -149,6 +150,7 @@ function commitTagInput() {
   markInvalid(tagInput, Boolean(msg));
   tagInput.closest(".field").querySelector(".hint").textContent = msg || TAG_HINT;
   if (!msg) tagInput.value = "";
+  if (!msg) touchDraft();
   return msg;
 }
 
@@ -179,6 +181,7 @@ tagList.addEventListener("click", (e) => {
   tags.splice(Number(btn.dataset.i), 1);
   renderTags();
   tagInput.focus();
+  touchDraft();
 });
 
 async function loadTagOptions() {
@@ -230,6 +233,7 @@ function setCoords(lat, lng, { moveMap = true, zoom } = {}) {
   markInvalid(f.lat, false);
   markInvalid(f.lng, false);
   if (moveMap && map) map.setPosition(lat, lng, zoom);
+  scheduleDraft();
 }
 
 async function reverseLookup() {
@@ -248,6 +252,7 @@ async function reverseLookup() {
     markInvalid(f.address, false);
     updateCount();
     setStatus(geoStatus, "已依座標帶入地址，可再手動修改", "ok");
+    scheduleDraft();
   } catch (err) {
     if (seq === reverseSeq) setStatus(geoStatus, err.message, "error");
   }
@@ -264,6 +269,7 @@ function applyResult(r) {
   updateCount();
   results.innerHTML = "";
   setStatus(geoStatus, "已依地址移動標記，可再拖曳微調", "ok");
+  touchDraft();
 }
 
 async function geocode() {
@@ -324,6 +330,7 @@ async function initMap(lat, lng) {
       onPick(la, ln) {
         setCoords(la, ln, { moveMap: false });
         scheduleReverse();
+        touchDraft();
       },
     });
   } catch (err) {
@@ -385,12 +392,14 @@ grid.addEventListener("click", (e) => {
   if (p.kind === "new") {
     URL.revokeObjectURL(p.url);
     photos = photos.filter((x) => x !== p);
+    deleteBlob(p.blobId);
     setStatus(photoStatus, "已移除，這張不會上傳", "ok");
   } else {
     p.removed = true;
     setStatus(photoStatus, "已標記移除，按「儲存點評」後才會從 R2 刪除", "ok");
   }
   renderPhotos();
+  touchDraft();
 });
 
 async function addFiles(fileList) {
@@ -411,6 +420,7 @@ async function addFiles(fileList) {
     try {
       const out = await compressImage(file, { maxEdge: settings.maxEdge, quality: settings.quality });
       photos.push({ uid: ++uid, kind: "new", blob: out.blob, url: URL.createObjectURL(out.blob), width: out.width, height: out.height, bytes: out.blob.size, caption: "" });
+      keepBlob(photos.at(-1));
       before += file.size;
       after += out.blob.size;
       done++;
@@ -420,6 +430,7 @@ async function addFiles(fileList) {
   }
   unlockScreen();
   renderPhotos();
+  if (done) touchDraft();
   const skipped = files.length > room ? `，超過上限略過 ${files.length - room} 張` : "";
   if (failed.length) setStatus(photoStatus, failed[0] + skipped, "error");
   else setStatus(photoStatus, `已壓縮 ${done} 張：${formatBytes(before)} → ${formatBytes(after)}${skipped}。按「儲存點評」後上傳`, "ok");
@@ -456,7 +467,9 @@ async function addIllustration(url) {
     const name = url.split("/").pop();
     photos.push({ uid: ++uid, kind: "new", illust: name, blob, url: URL.createObjectURL(blob), width: bmp.width, height: bmp.height, bytes: blob.size, caption: "" });
     bmp.close();
+    keepBlob(photos.at(-1));
     renderPhotos();
+    touchDraft();
     setStatus(photoStatus, "已加入插畫，按「儲存點評」後儲存（插畫直接引用站內原檔，不另外上傳）", "ok");
     return true;
   } catch {
@@ -568,8 +581,125 @@ async function syncOg(id, cover) {
   await api(`/api/reviews/${id}/og?${q}`, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg" } });
 }
 
+// ---------- 草稿：還沒儲存的修改暫存在這台裝置（public/js/draft.js），重開編輯頁時還原 ----------
+// 使用者動過表單才開始寫草稿；載入點評、自動定位這類程式帶入的值不算。儲存成功、刪除或按「捨棄草稿」後清掉。
+const DRAFT_DELAY = 400; // 停止輸入多久後寫一次
+const discardBtn = $("#draft-discard-btn");
+let draftDirty = false;
+let draftTimer = null;
+let reviewBase = null; // 載入時點評的 updated_at，用來判斷草稿之後點評有沒有在別處被改過
+let leaving = false; // 捨棄草稿重新載入時不跳離開提醒
+
+const draftKey = () => (reviewId ? `review-${reviewId}` : "new");
+
+function snapshot() {
+  const ratings = Object.fromEntries([...ratingsBox.querySelectorAll(".app-hearts")]
+    .map((fs) => [fs.dataset.key, Number(fs.querySelector("input:checked")?.value || 0)]));
+  return {
+    savedAt: Date.now(), base: reviewBase,
+    form: {
+      title: f.title.value, meal: f.meal.value, price: f.price.value, visited: f.visited.value, body: f.body.value,
+      lat: f.lat.value, lng: f.lng.value, address: f.address.value, tagInput: tagInput.value,
+    },
+    tags: [...tags], ratingsOn: ratingsOn.checked, ratings,
+    photos: photos.map((p) => (p.kind === "new"
+      ? { kind: "new", blobId: p.blobId, illust: p.illust, width: p.width, height: p.height, bytes: p.bytes, caption: p.caption }
+      : { kind: "existing", id: p.id, caption: p.caption, removed: Boolean(p.removed) })),
+  };
+}
+
+async function writeDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = null;
+  if (!draftDirty || saving) return;
+  if (await saveDraft(draftKey(), snapshot()) && draftDirty) discardBtn.hidden = false;
+}
+
+function scheduleDraft() {
+  if (!draftDirty || saving) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(writeDraft, DRAFT_DELAY);
+}
+
+function touchDraft() {
+  draftDirty = true;
+  scheduleDraft();
+}
+
+// 切到別的 App、關頁前把還沒寫的草稿寫掉：手機切走後頁面可能直接被系統回收
+async function flushDraft() {
+  if (draftTimer) await writeDraft();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushDraft();
+});
+window.addEventListener("pagehide", flushDraft);
+
+async function dropDraft(...keys) {
+  clearTimeout(draftTimer);
+  draftTimer = null;
+  draftDirty = false;
+  for (const key of new Set(keys)) await clearDraft(key);
+  discardBtn.hidden = true;
+}
+
+// 新照片加入時就把檔案存進草稿，之後寫草稿只記 blobId
+function keepBlob(p) {
+  p.blobId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  putBlob(p.blobId, p.blob);
+}
+
+// 把草稿套回表單；serverPhotos 是伺服器目前的照片（新點評是空陣列）。回傳讀不回檔案的照片張數
+async function applyDraft(d, serverPhotos) {
+  for (const k of ["title", "meal", "price", "visited", "body", "lat", "lng", "address"]) f[k].value = d.form[k];
+  tagInput.value = d.form.tagInput;
+  tags = [...d.tags];
+  renderTags();
+  ratingsOn.checked = d.ratingsOn;
+  ratingsBox.hidden = !d.ratingsOn;
+  renderRatings(d.ratings);
+  photos.filter((p) => p.kind === "new").forEach((p) => URL.revokeObjectURL(p.url));
+  photos = [];
+  let lost = 0;
+  for (const p of restorePhotos(serverPhotos, d.photos)) {
+    if (p.kind === "new") {
+      const blob = await getBlob(p.blobId);
+      if (!blob) {
+        lost++;
+        continue;
+      }
+      Object.assign(p, { blob, url: URL.createObjectURL(blob) });
+    }
+    photos.push({ ...p, uid: ++uid });
+  }
+  renderPhotos();
+  updateCount();
+  updateIllustHint();
+  draftDirty = true;
+  discardBtn.hidden = false;
+  return lost;
+}
+
+function draftNotice(d, review, lost) {
+  const at = new Date(d.savedAt).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  const stale = isStale(d, review);
+  let msg = `已還原 ${at} 暫存在這台裝置、還沒儲存的修改；不要的話按「捨棄草稿」`;
+  if (stale) msg += "。這筆點評在那之後被改過，儲存會蓋掉那次的修改";
+  if (lost) msg += `。有 ${lost} 張照片讀不回來，請重新加入`;
+  setStatus(saveStatus, msg, stale || lost ? "error" : "ok");
+  toast("已還原還沒儲存的修改", 4000);
+}
+
+discardBtn.addEventListener("click", async () => {
+  if (!confirm("確定捨棄這台裝置上還沒儲存的修改？")) return;
+  await dropDraft(draftKey());
+  leaving = true;
+  location.reload();
+});
+
 // ---------- 載入與儲存 ----------
 function fillReview(r) {
+  reviewBase = r.updated_at || null;
   f.title.value = r.title;
   f.meal.value = r.meal || "";
   f.price.value = r.price;
@@ -612,6 +742,8 @@ form.addEventListener("submit", async (e) => {
   }
   const auto = matchIllust(); // 沒有照片時依分類、餐點或餐廳補一張插畫；壓縮期間 addFiles 自己會鎖畫面
   const autoAdded = auto ? await addIllustration(auto.url) : false;
+  const oldKey = draftKey(); // 新點評存成功後 key 會從 "new" 換成這筆點評的 id
+  await flushDraft();
   saving = true;
   lockScreen("儲存中…"); // 先鎖再停用按鈕：停用會讓瀏覽器移走焦點，鎖定時要記住的是儲存鈕
   $("#save-btn").disabled = true;
@@ -638,6 +770,7 @@ form.addEventListener("submit", async (e) => {
     else setStatus(saveStatus, "已儲存", "ok");
     if (autoAdded) setStatus(photoStatus, `沒有照片，已自動加入「${auto.label}」插畫`, "ok");
     actionToast(photoErrors.length ? "點評已儲存，部分照片處理失敗" : "已儲存點評", { href: "/", label: "返回列表" });
+    await dropDraft(oldKey, draftKey());
   } catch (err) {
     setStatus(saveStatus, showFieldErrors(err.fields) || err.message, "error");
   } finally {
@@ -645,12 +778,18 @@ form.addEventListener("submit", async (e) => {
     $("#save-btn").disabled = false;
     unlockScreen();
   }
+  // 新點評已建立、後面的步驟卻失敗：草稿改掛到這筆點評，重開 /edit?id= 時才找得到
+  if (draftDirty && oldKey !== draftKey()) {
+    await writeDraft();
+    await clearDraft(oldKey);
+  }
 });
 
 $("#delete-btn").addEventListener("click", async () => {
   if (!reviewId || !confirm("確定刪除這筆點評與所有照片？刪除後無法復原。")) return;
   try {
     await api(`/api/reviews/${reviewId}`, { method: "DELETE" });
+    await dropDraft(draftKey());
     location.href = "/";
   } catch (err) {
     setStatus(saveStatus, err.message, "error");
@@ -677,8 +816,9 @@ f.body.addEventListener("input", (e) => {
   updateCount();
 });
 for (const [el] of COUNTED) el.addEventListener("input", updateCount);
+for (const type of ["input", "change"]) form.addEventListener(type, touchDraft);
 window.addEventListener("beforeunload", (e) => {
-  if (photos.some((p) => p.kind === "new")) e.preventDefault();
+  if (!leaving && photos.some((p) => p.kind === "new")) e.preventDefault();
 });
 
 async function init() {
@@ -686,12 +826,15 @@ async function init() {
   form.inert = true; // 設定與點評載入前鎖住表單，避免使用者先改的值被載入結果蓋掉
   settings = await loadSettings();
   loadTagOptions();
+  await sweepBlobs();
   if (reviewId) {
     try {
       const { review } = await api(`/api/reviews/${reviewId}`);
       fillReview(review);
+      const draft = await loadDraft(draftKey());
+      if (draft) draftNotice(draft, review, await applyDraft(draft, review.photos));
       form.inert = false;
-      await initMap(review.lat, review.lng);
+      await initMap(Number(f.lat.value) || review.lat, Number(f.lng.value) || review.lng);
       return;
     } catch (err) {
       setStatus(saveStatus, err.message + "；以下改為新增點評", "error");
@@ -705,6 +848,13 @@ async function init() {
   renderRatings(Object.fromEntries(RATING_DEFS.map(([k]) => [k, settings.defaultHearts])));
   updateCount();
   setCoords(FALLBACK.lat, FALLBACK.lng, { moveMap: false });
+  const draft = await loadDraft(draftKey());
+  if (draft) { // 有草稿就照草稿的位置，不再自動定位蓋掉
+    draftNotice(draft, null, await applyDraft(draft, []));
+    form.inert = false;
+    await initMap(Number(f.lat.value) || FALLBACK.lat, Number(f.lng.value) || FALLBACK.lng);
+    return;
+  }
   form.inert = false;
   await initMap(FALLBACK.lat, FALLBACK.lng);
   await locate({ fillAddress: true });

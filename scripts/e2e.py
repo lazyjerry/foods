@@ -177,6 +177,61 @@ with sync_playwright() as p:
     page.click("#delete-btn")
     page.wait_for_url(BASE + "/")
 
+    # 草稿：還沒儲存的輸入暫存在這台裝置，重新整理後還原；儲存或捨棄後不再還原；測完刪掉這筆
+    small = tmp / "small.bmp"
+    make_jpeg(small, 400, 300)
+    page.goto(BASE + "/edit")
+    page.wait_for_function("document.querySelector('#address').value.length > 0", timeout=15000)
+    ok("沒有草稿時不顯示「捨棄草稿」", page.is_hidden("#draft-discard-btn"))
+    page.fill("#title", "E2E 草稿小館")
+    page.fill("#price", "88")
+    page.fill("#body", "第一行\n第二行")
+    page.fill("#tag-input", "E2E草稿")
+    page.press("#tag-input", "Enter")
+    page.press("#tag-input", "Escape")  # 收起分類建議清單，不然會蓋住下面的評比開關
+    page.click("label.switch:has(#ratings-on)")
+    page.click('.app-hearts[data-key="taste"] .app-heart:nth-of-type(2)')
+    page.set_input_files("#pick-input", str(small))
+    page.wait_for_function("document.querySelector('#photo-status').textContent.includes('已壓縮')", timeout=20000)
+    page.fill(".app-photo-tile input", "草稿照片")
+    page.wait_for_timeout(1000)  # 草稿在停止輸入後才寫入
+    page.reload()
+    page.wait_for_function("document.querySelector('#title').value === 'E2E 草稿小館'", timeout=15000)
+    page.wait_for_selector(".app-photo-tile")
+    ok("重新整理後還原欄位、分類與評比",
+       page.input_value("#price") == "88" and page.input_value("#body") == "第一行\n第二行"
+       and page.text_content("#tag-list") == "#E2E草稿 ×" and page.is_visible("#ratings")
+       and page.is_checked('.app-hearts[data-key="taste"] input[value="2"]'),
+       [page.input_value("#price"), page.input_value("#body"), page.text_content("#tag-list")])
+    ok("重新整理後還原待上傳照片與說明",
+       page.locator(".app-photo-tile").count() == 1 and page.input_value(".app-photo-tile input") == "草稿照片"
+       and "400×300 · 待上傳" in page.text_content(".app-photo-tile .meta"), page.text_content(".app-photo-tile .meta"))
+    ok("還原後提示並可捨棄草稿", "還原" in page.text_content("#save-status") and page.is_visible("#draft-discard-btn"),
+       page.text_content("#save-status"))
+    page.click("#save-btn")
+    page.wait_for_function("document.querySelector('#save-status').textContent === '已儲存'", timeout=20000)
+    draft_id = page.url.split("id=")[1]
+    ok("儲存後收起「捨棄草稿」", page.is_hidden("#draft-discard-btn"))
+    page.goto(BASE + "/edit")
+    page.wait_for_function("document.querySelector('#address').value.length > 0", timeout=15000)
+    ok("儲存後新增頁不再還原草稿", page.input_value("#title") == "" and page.locator(".app-photo-tile").count() == 0)
+    page.goto(BASE + f"/edit?id={draft_id}")
+    page.wait_for_function("document.querySelector('#title').value === 'E2E 草稿小館'", timeout=15000)
+    page.fill("#body", "改過還沒存")
+    page.click(".app-photo-tile [data-remove]")
+    page.wait_for_timeout(1000)
+    page.reload()
+    page.wait_for_function("document.querySelector('#body').value === '改過還沒存'", timeout=15000)
+    ok("既有點評還原修改與標記移除的照片", page.locator(".app-photo-tile").count() == 0)
+    page.once("dialog", lambda dlg: dlg.accept())
+    with page.expect_navigation():
+        page.click("#draft-discard-btn")
+    page.wait_for_function("document.querySelector('#body').value === '第一行\\n第二行'", timeout=15000)
+    ok("捨棄草稿後回到已儲存的內容", page.locator(".app-photo-tile").count() == 1 and page.is_hidden("#draft-discard-btn"))
+    page.once("dialog", lambda dlg: dlg.accept())
+    page.click("#delete-btn")
+    page.wait_for_url(BASE + "/")
+
     # 列表與搜尋
     page.goto(BASE + "/")
     page.wait_for_selector(".app-review")
